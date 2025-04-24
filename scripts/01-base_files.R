@@ -92,7 +92,7 @@ mammal_habitat_preferences <- list()
 mammal_elevation_ranges <- list()
 
 # initialize token and api
-token <- 'D98jKWcys1KfrHVAngXsno85KWjNw6s2qyyt'  
+token <- 'D98jKWcys1KfrHVAngXsno85KWjNw6s2qyyt'  # better if you get your own token
 api <- init_api(token) 
 
 # import tropical terrestrial mammals created before
@@ -100,8 +100,11 @@ mammals <- vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/Terrestrial_Ma
 # our field of interest is 'id_no' which is an identifier for each species
 species <- data.frame(id = unique(mammals$id_no), sci_name = unique(mammals$sci_name))
 
-tic()
+# # this takes a lot of time so you can just unsilence this and load the files
+# mammal_habitat_preferences <- readRDS('Habitats/mammal_habitat_preferences.rds')
+# mammal_elevation_ranges <- readRDS('Habitats/mammal_elevation_ranges.rds')
 
+tic()
 for (i in 1:nrow(species)) {
   print(i)  
   
@@ -158,7 +161,6 @@ for (i in 1:nrow(species)) {
   
   mammal_elevation_ranges[[species_name]] <- elevation_data
 }
-
 toc()  
 
 # Save results 
@@ -183,15 +185,19 @@ writeRaster(srtm, 'Spatial_Data/SRTM90/strm_300m_trop.tif', overwrite=T)
 
 ### 4. translate ESA-CCI land uses to habitats as described in IUCN basing on Lumbierres et al 2021
 
+# this step is a little confusing
+# if you don't need to revise you can just load 'Habitats/translation_by_lumbierres.csv' in the following script
+
 # first load correspondences between esa and iucn
 # table from Lumbierres et al 2021 (Figure 3)
+# this is basically a correlation table between ESA and IUCN classes
 translation <- read_xlsx('Habitats/esa-habitats.xlsx') %>%
   mutate(across(3:13, ~ {
     x <- ifelse(.x == '-', NA, .x) # replace '-' with NA
     as.numeric(x) # convert to numeric
   }))
 
-# ESA-CCI legend
+# ESA-CCI legend (PDF converted to excel)
 cci_legend <- read_xlsx('Habitats/CCI-LC_Maps_Legend.xlsx') %>%
   # new column to match land use groups used in Lumbierres et al 2021
   mutate(lumbierres = c(
@@ -235,7 +241,8 @@ cci_legend <- read_xlsx('Habitats/CCI-LC_Maps_Legend.xlsx') %>%
     'Water bodies'
   ))
 
-# extract habitat class with highest positive value to each land use
+# extract habitat class with highest positive correlation value to each land use
+# (this may be adjusted but I just took the hightest)
 numeric_cols <- translation %>% select(where(is.numeric)) %>% names()
 translation <- translation %>%
   rowwise() %>%

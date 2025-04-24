@@ -2,7 +2,6 @@
 ### 1. process ESA CCI and translate
 # crop/mask with tropical forest
 # from this step the process is per year (ESA-CCI)
-# trial done with with 2010
 
 rm(list=ls())
 
@@ -24,7 +23,7 @@ srtm <- rast('Spatial_Data/SRTM90/strm_300m_trop.tif')
 
 # download all needed ESA files
 # in the following vector just write down the years you want
-years <- c(2000, 2005, 2010, 2015)
+years <- c(1995, 2000, 2005, 2010, 2015)
 # set download directory
 download_dir <- 'Spatial_Data/ESA-LC'
 # iterate though these years
@@ -110,62 +109,71 @@ rm(srtm, esa_files)
 # outside and inside the loop because they are non-exportable
 # (see https://future.futureverse.org/articles/future-4-non-exportable-objects.html for more info)
 
-# doing this first for 2010 only
-
 hab_pref <- readRDS('Habitats/mammal_habitat_preferences.rds')
 elev_range <- readRDS('Habitats/mammal_elevation_ranges.rds')
 
 mammals <- vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/Terrestrial_Mammals_TropicalRanges.shp')
 
-base <- rast('Spatial_Data/AOHs/baselayers/baselayer_2010.tif') %>%
-  project(mammals, method='near')
+base_files <- list.files('Spatial_Data/AOHs/baselayers', 
+                         pattern='.tif',
+                         full.names=T)
 
-for (i in seq_along(mammals)) {
-  mammal <- mammals[i, ]
-  output_file <- paste0('Spatial_Data/AOHs/', mammal$sci_name, '.tif')
+# nested loop in which first we select a year for the base layer
+# and then extract distributions for that year
+for (year in base_files) {
   
-  # Skip if the file already exists
-  if (file.exists(output_file)) {
-    message("Skipping ", mammal$sci_name, " (already processed)")
-    next  # Jump to the next iteration
+  base <- base_files[year]
+  base <- base %>%
+    rast() %>%
+    project(mammals, method='near')
+  
+  for (i in seq_along(mammals)) {
+    mammal <- mammals[i, ]
+    output_file <- paste0('Spatial_Data/AOHs/', mammal$sci_name, '.tif')
+    
+    # Skip if the file already exists
+    if (file.exists(output_file)) {
+      message("Skipping ", mammal$sci_name, " (already processed)")
+      next  # Jump to the next iteration
+    }
+    
+    # Proceed with processing if file doesn't exist
+    r <- base %>%
+      crop(mammal) %>%
+      mask(mammal)
+    
+    habitat_codes <- as.numeric(sub('_.*', '', hab_pref[[mammal$sci_name]]$Habitat_Code))
+    elevation_range <- elev_range[[mammal$sci_name]]
+    
+    # 1) Compute elevation thresholds (in raster units)
+    lo_e <- elevation_range$Lower_Elevation_Limit / 10
+    hi_e <- elevation_range$Upper_Elevation_Limit / 10
+    
+    # if any is NA replace with zero (no elevation range so we assume all values are suitable)
+    if (any(is.na(c(lo_e, hi_e)))) {
+      lo_e <- 0
+      hi_e <- 0
+    }
+    
+    # 2) Initialize logical raster (all FALSE)
+    cond <- r
+    cond[] <- FALSE
+    
+    # 3) For each habitat code, set TRUE where r ∈ [code*1000 + lo_e, code*1000 + hi_e]
+    for (code in habitat_codes) {
+      minv <- code * 1000 + lo_e
+      maxv <- code * 1000 + hi_e
+      cond <- cond | ((r >= minv) & (r <= maxv))
+    }
+    
+    # 4) Convert logical → binary (1/NA)
+    binary_mask <- ifel(cond, 1, NA)
+    names(binary_mask) <- mammal$sci_name
+    
+    # 5) Write output
+    writeRaster(binary_mask, output_file, overwrite = TRUE)
+    message("Processed and saved: ", mammal$sci_name)
   }
-  
-  # Proceed with processing if file doesn't exist
-  r <- base %>%
-    crop(mammal) %>%
-    mask(mammal)
-  
-  habitat_codes <- as.numeric(sub('_.*', '', hab_pref[[mammal$sci_name]]$Habitat_Code))
-  elevation_range <- elev_range[[mammal$sci_name]]
-  
-  # 1) Compute elevation thresholds (in raster units)
-  lo_e <- elevation_range$Lower_Elevation_Limit / 10
-  hi_e <- elevation_range$Upper_Elevation_Limit / 10
-  
-  # if any is NA replace with zero (no elevation range so we assume all values are suitable)
-  if (any(is.na(c(lo_e, hi_e)))) {
-    lo_e <- 0
-    hi_e <- 0
-  }
-  
-  # 2) Initialize logical raster (all FALSE)
-  cond <- r
-  cond[] <- FALSE
-  
-  # 3) For each habitat code, set TRUE where r ∈ [code*1000 + lo_e, code*1000 + hi_e]
-  for (code in habitat_codes) {
-    minv <- code * 1000 + lo_e
-    maxv <- code * 1000 + hi_e
-    cond <- cond | ((r >= minv) & (r <= maxv))
-  }
-  
-  # 4) Convert logical → binary (1/NA)
-  binary_mask <- ifel(cond, 1, NA)
-  names(binary_mask) <- mammal$sci_name
-  
-  # 5) Write output
-  writeRaster(binary_mask, output_file, overwrite = TRUE)
-  message("Processed and saved: ", mammal$sci_name)
 }
 # 575 already done, starting at 17:05, stopping at 8am the next day ~1700
 # # starting again at 8.40, 
