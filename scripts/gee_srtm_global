@@ -1,0 +1,17 @@
+var dataset = ee.Image('CGIAR/SRTM90_V4');
+var elevation = dataset.select('elevation')
+                       .resample('bilinear');  // Apply bilinear resampling
+
+Map.setCenter(-112.8598, 36.2841, 10);
+Map.addLayer(elevation, {min: 0, max: 4000}, 'elevation (bilinear)');
+
+// Export the resampled image at 300m resolution
+Export.image.toDrive({
+  image: elevation,
+  description: "srtm90_global_300m",
+  folder: "Google Earth",  // Change to your Google Drive folder name
+  fileNamePrefix: "srtm90_global_300m",
+  scale: 300,  // Export resolution: 300 meters
+  maxPixels: 1e13,
+  fileFormat: "GeoTIFF"
+});
