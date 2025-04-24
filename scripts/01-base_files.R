@@ -36,6 +36,9 @@ forest <- aggregate(forest, by = 'id', dissolve = TRUE)
 writeVector(forest, 'Spatial_Data/Tropical_Forest/tropicalmask.shp', overwrite=T)
 
 #Import terrestrial mammals distribution ranges from IUCN.
+
+# download file if needed from https://www.iucnredlist.org/resources/files/7864a4a2-f7ed-422f-8a43-7fc42e3883c9
+# (you must fill form and place under the folder 'Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals)
 mammal_ranges <- terra::vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/MAMMALS_TERRESTRIAL_ONLY.shp')
 
 # here I select the ones used in Lumbierres et al 2022:
@@ -50,7 +53,7 @@ extant <- extant[c(1,4,5)]
 pextant <- legend[grep('^Probably Extant ', legend)]
 pextant <- pextant[1]
 wanted_ranges <- c(extant, pextant)
-# revise this because I dont have it clear
+# revise this because I don't have it clear and change it if needed
 
 # Filter out wanted polygons
 mammal_ranges <- mammal_ranges[mammal_ranges$legend %in% wanted_ranges, ]
