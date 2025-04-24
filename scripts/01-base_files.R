@@ -164,6 +164,7 @@ saveRDS(mammal_elevation_ranges, 'Habitats/mammal_elevation_ranges.rds')
 
 ### 3. process SRTM files
 # SRTM was extracted and resampled using GEE (3 files)
+# to get these files, run the script 'gee_srtm_global' in GEE and place them in the 'Spatial_Data/SRTM90' folder
 
 srtm_files <- list.files('Spatial_Data/SRTM90', pattern='.tif$', full.names=TRUE)
 srtm_list <- lapply(srtm_files, rast)

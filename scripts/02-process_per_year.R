@@ -22,6 +22,19 @@ become <- habitats$code_lumbierres
 # load srtm
 srtm <- rast('Spatial_Data/SRTM90/strm_300m_trop.tif')
 
+# download all needed ESA files
+# in the following vector just write down the years you want
+years <- c(2000, 2005, 2010, 2015)
+# set download directory
+download_dir <- 'Spatial_Data/ESA-LC'
+# iterate though these years
+for (i in years) {
+  year <- years[i]
+  ftp_url <- paste0('ftp://geo10.elie.ucl.ac.be/CCI/LandCover/byYear/ESACCI-LC-L4-LCCS-Map-300m-P1Y-', i, '-v2.0.7.tif')
+  dest_file <- paste0(download_dir, 'ESACCI-LC-L4-LCCS-Map-300m-P1Y-', i, '-v2.0.7.tif')
+  download.file(ftp_url, destfile=dest_file, mode='wb')
+}
+
 # load all esa files (even if it is one or multiple)
 esa_files <- list.files(
   path = 'Spatial_Data/ESA-LC/',
