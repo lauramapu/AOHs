@@ -10,6 +10,7 @@ library(terra)
 library(dplyr)
 library(data.table)
 library(readxl)
+library(purrr)
 
 forest <- vect('Spatial_Data/Tropical_Forest/tropicalmask.shp')
 
@@ -18,11 +19,8 @@ habitats <- read.csv('Habitats/translation_by_lumbierres.csv')
 is <- habitats$Value
 become <- habitats$code_lumbierres
 
-# load and resample SRTM to match ESA
-srtm <- rast('Spatial_Data/SRTM90/strm_300m_trop.tif') %>%
-  resample(x, method='bilinear')
-# now we round srtm value to /10
-srtm <- app(srtm, fun = function(x) {round(x/10)})
+# load srtm
+srtm <- rast('Spatial_Data/SRTM90/strm_300m_trop.tif')
 
 # load all esa files (even if it is one or multiple)
 esa_files <- list.files(
@@ -42,7 +40,8 @@ output_final <- 'Spatial_Data/AOHs/baselayers/'
 if (!dir.exists(output_final)) dir.create(output_final, recursive = TRUE)
 
 # process each esa file
-lapply(esa_files, function(esa) {
+imap(esa_files, function(esa, i) { # use imap instead of lapply to get index
+  
   # extract year from filename
   year <- regmatches(basename(sources(esa)), regexpr('\\d{4}', basename(sources(esa))))
   
@@ -58,15 +57,24 @@ lapply(esa_files, function(esa) {
   # delete original
   file.remove(sources(esa))
   
+  # in first iteration resample SRTM to ESA and round
+  if (i==1) { 
+    srtm <<- srtm %>% # <<- to keep the change in the global env
+      resample(x, method='bilinear') %>%
+      app(fun = function(x) {round(x/10)}) # round value to /10
+  }
+  else {}
+  
   # reclass land uses to habitats 
   y <- subst(x, is, become)
   # y <- classify(ESA, cbind(is, become)) # another solution
   
+  # multiply per 1000
+  y <- app(y, fun = function(i) {i*1000})
+  
   out_name <- paste0(output_dir, 'esa_', year, '_reclass.tif')
   writeRaster(y, out_name, overwrite=T)
   
-  # multiply per 1000
-  y <- app(y, fun = function(i) {i*1000})
   # and sum to srtm
   habitat_elev <- srtm + y
 
@@ -76,11 +84,11 @@ lapply(esa_files, function(esa) {
   out_name <- paste0(output_final, 'baselayer_', year, '.tif')
   writeRaster(habitat_elev, out_name, overwrite=T)
   
-  cat(out_name, ' done/n')
+  cat(out_name, ' done\n')
   
 })
 
-rm(srtm, esa_files, x, y, habitat_elev)
+rm(srtm, esa_files)
 
 ### 2. finally, generate AoH for each species using the habitat-elevation tif
 
@@ -89,54 +97,62 @@ rm(srtm, esa_files, x, y, habitat_elev)
 # outside and inside the loop because they are non-exportable
 # (see https://future.futureverse.org/articles/future-4-non-exportable-objects.html for more info)
 
+# doing this first for 2010 only
+
 hab_pref <- readRDS('Habitats/mammal_habitat_preferences.rds')
 elev_range <- readRDS('Habitats/mammal_elevation_ranges.rds')
 
 mammals <- vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/Terrestrial_Mammals_TropicalRanges.shp')
 
-base <- rast('Spatial_Data/AOHs/aoh_2010.tif') %>%
+base <- rast('Spatial_Data/AOHs/baselayers/baselayer_2010.tif') %>%
   project(mammals, method='near')
 
 for (i in seq_along(mammals)) {
+  mammal <- mammals[i, ]
+  output_file <- paste0('Spatial_Data/AOHs/', mammal$sci_name, '.tif')
   
-  # aoh <- unwrap(aoh_w)
-  # mammals <- unwrap(mammals_w)
+  # Skip if the file already exists
+  if (file.exists(output_file)) {
+    message("Skipping ", mammal$sci_name, " (already processed)")
+    next  # Jump to the next iteration
+  }
   
-  mammal <- mammals[i,]
-  
-  r <- aoh %>%
+  # Proceed with processing if file doesn't exist
+  r <- base %>%
     crop(mammal) %>%
     mask(mammal)
   
-  habitat_codes <- as.numeric(sub('_.*', '',hab_pref[[mammal$sci_name]]$Habitat_Code))
+  habitat_codes <- as.numeric(sub('_.*', '', hab_pref[[mammal$sci_name]]$Habitat_Code))
   elevation_range <- elev_range[[mammal$sci_name]]
   
-  # 1) compute the elevation thresholds (in the raster's units)
+  # 1) Compute elevation thresholds (in raster units)
   lo_e <- elevation_range$Lower_Elevation_Limit / 10
   hi_e <- elevation_range$Upper_Elevation_Limit / 10
   
-  # 2) initialize a logical raster (all FALSE) matching 'r'
+  # if any is NA replace with zero (no elevation range so we assume all values are suitable)
+  if (any(is.na(c(lo_e, hi_e)))) {
+    lo_e <- 0
+    hi_e <- 0
+  }
+  
+  # 2) Initialize logical raster (all FALSE)
   cond <- r
   cond[] <- FALSE
   
-  # 3) for each habitat code, set TRUE where r ∈ [code*1000 + lo_e, code*1000 + hi_e]
-  for(code in habitat_codes){
-    
-    #if (lo_e == NA | hi_e == NA) {lo_e<-0; hi_e<-0} # set elev to zero if there is no data
-    
+  # 3) For each habitat code, set TRUE where r ∈ [code*1000 + lo_e, code*1000 + hi_e]
+  for (code in habitat_codes) {
     minv <- code * 1000 + lo_e
     maxv <- code * 1000 + hi_e
-    
-    cond <- cond |
-      ((r >= minv) & (r <= maxv))
+    cond <- cond | ((r >= minv) & (r <= maxv))
   }
   
-  # 5) convert logical → binary (1/0)
+  # 4) Convert logical → binary (1/NA)
   binary_mask <- ifel(cond, 1, NA)
   names(binary_mask) <- mammal$sci_name
   
-  # 6) write out if you like
-  writeRaster(binary_mask, paste0('Spatial_Data/AOHs/',mammal$sci_name,'.tif'), overwrite=TRUE)
+  # 5) Write output
+  writeRaster(binary_mask, output_file, overwrite = TRUE)
+  message("Processed and saved: ", mammal$sci_name)
 }
-
-registerDoSEQ()  
+# 575 already done, starting at 17:05, stopping at 8am the next day ~1700
+# # starting again at 8.40, 

@@ -174,6 +174,7 @@ forest <- project(forest, srtm_merged)
 srtm <- srtm_merged %>%
   crop(forest) %>%
   mask(forest)
+
 writeRaster(srtm, 'Spatial_Data/SRTM90/strm_300m_trop.tif', overwrite=T)
 
 ### 4. translate ESA-CCI land uses to habitats as described in IUCN basing on Lumbierres et al 2021
