@@ -45,8 +45,8 @@ esa_files <- list.files(
 # reproyect mask to match esa files
 forest <- project(forest, esa_files[[1]]) 
 
-output_dir <- 'Spatial_Data/ESA-LC/processed/'
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+# output_dir <- 'Spatial_Data/ESA-LC/processed/'
+# if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 output_final <- 'Spatial_Data/AOHs/baselayers/'
 if (!dir.exists(output_final)) dir.create(output_final, recursive = TRUE)
@@ -62,9 +62,9 @@ imap(esa_files, function(esa, i) { # use imap instead of lapply to get index
     crop(forest) %>% 
     mask(forest)
   
-  # save
-  out_name <- paste0(output_dir, 'esa_', year, '_trop.tif')
-  writeRaster(x, out_name, overwrite = TRUE)
+  # # save
+  # out_name <- paste0(output_dir, 'esa_', year, '_trop.tif')
+  # writeRaster(x, out_name, overwrite = TRUE)
   
   # delete original
   file.remove(sources(esa))
@@ -84,8 +84,8 @@ imap(esa_files, function(esa, i) { # use imap instead of lapply to get index
   # multiply per 1000
   y <- app(y, fun = function(i) {i*1000})
   
-  out_name <- paste0(output_dir, 'esa_', year, '_reclass.tif')
-  writeRaster(y, out_name, overwrite=T)
+  # out_name <- paste0(output_dir, 'esa_', year, '_reclass.tif')
+  # writeRaster(y, out_name, overwrite=T)
   
   # and sum to srtm
   habitat_elev <- srtm + y
@@ -120,60 +120,93 @@ base_files <- list.files('Spatial_Data/AOHs/baselayers',
 
 # nested loop in which first we select a year for the base layer
 # and then extract distributions for that year
-for (year in base_files) {
+for (i in seq_along(base_files)) {
   
-  base <- base_files[year]
-  base <- base %>%
-    rast() %>%
+  # get year
+  year <- regmatches(base_files[i], regexpr('\\d{4}', base_files[i]))
+  
+  # generate output path per year
+  output_dir <- paste0('Spatial_Data/AOHs/', year, '/')
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+  
+  # read and project base layer
+  base <- base_files[i]
+  base <- rast(base) %>%
     project(mammals, method='near')
   
-  for (i in seq_along(mammals)) {
-    mammal <- mammals[i, ]
-    output_file <- paste0('Spatial_Data/AOHs/', mammal$sci_name, '.tif')
+  for (j in seq_along(mammals)) {
     
-    # Skip if the file already exists
+    # get species
+    mammal <- mammals[j, ]
+    output_file <- paste0('Spatial_Data/AOHs/', year, '/', mammal$sci_name, '.tif')
+    
+    # skip if the species is already processed
     if (file.exists(output_file)) {
       message("Skipping ", mammal$sci_name, " (already processed)")
-      next  # Jump to the next iteration
+      next
     }
     
-    # Proceed with processing if file doesn't exist
+    # crop and mask base with the current distribution
     r <- base %>%
       crop(mammal) %>%
       mask(mammal)
     
-    habitat_codes <- as.numeric(sub('_.*', '', hab_pref[[mammal$sci_name]]$Habitat_Code))
+    # get habitat codes and elevation range from the current species
+    habitat_codes <- hab_pref[[mammal$sci_name]]$Habitat_Code
     elevation_range <- elev_range[[mammal$sci_name]]
     
-    # 1) Compute elevation thresholds (in raster units)
+    # compute elevation thresholds (/10)
     lo_e <- elevation_range$Lower_Elevation_Limit / 10
     hi_e <- elevation_range$Upper_Elevation_Limit / 10
     
     # if any is NA replace with zero (no elevation range so we assume all values are suitable)
     if (any(is.na(c(lo_e, hi_e)))) {
       lo_e <- 0
-      hi_e <- 0
+      hi_e <- 999
     }
     
-    # 2) Initialize logical raster (all FALSE)
-    cond <- r
+    # initialize logical raster (all FALSE)
+    cond <- dist
     cond[] <- FALSE
     
-    # 3) For each habitat code, set TRUE where r ∈ [code*1000 + lo_e, code*1000 + hi_e]
-    for (code in habitat_codes) {
-      minv <- code * 1000 + lo_e
-      maxv <- code * 1000 + hi_e
-      cond <- cond | ((r >= minv) & (r <= maxv))
+    for (code_raw in habitat_codes) {
+      
+      # Handle special cases for codes starting with '14'
+      if (startsWith(as.character(code_raw), '14')) {
+        
+        # Convert to proper numeric code based on suffix
+        if (code_raw == '14') {
+          code_vec <- 140:149  # Expand 14 to 140–149
+        } else if (code_raw == '14_1' || code_raw == '14_2') {
+          code_vec <- 141
+        } else if (code_raw == '14_3' || code_raw == '14_6') {
+          code_vec <- 143
+        } else if (code_raw == '14_4' || code_raw == '14_5') {
+          code_vec <- 144
+        } else {
+          warning(paste("Unknown 14_x code:", code_raw))
+          next
+        }
+        
+      } else {
+        # For all other codes: just erase subgroup and convert to numeric
+        code_vec <- as.numeric(gsub("_.*", "", code_raw))
+      }
+      
+      # Apply condition logic for one or multiple habitat codes
+      for (code in code_vec) {
+        minv <- code * 1000 + lo_e
+        maxv <- code * 1000 + hi_e
+        cond <- cond | (dist >= minv) & (dist <= maxv)
+      }
     }
     
-    # 4) Convert logical → binary (1/NA)
+    # convert trues to ones
     binary_mask <- ifel(cond, 1, NA)
     names(binary_mask) <- mammal$sci_name
     
-    # 5) Write output
+    # write output
     writeRaster(binary_mask, output_file, overwrite = TRUE)
     message("Processed and saved: ", mammal$sci_name)
   }
 }
-# 575 already done, starting at 17:05, stopping at 8am the next day ~1700
-# # starting again at 8.40, 
