@@ -4,7 +4,7 @@ Based on the workflow conducted in Lumbierres et al 2022 to calculate Areas of H
 
 `/scripts`: contains the needed scripts to conduct the workflow
 
-`/Spatial_Data`: contains some of the needed spatial data to conduct the workflow, some files must be generated elsewhere, downloaded manually or downloaded though code
+`/Spatial_Data`: contains some of the needed spatial data to conduct the workflow, some files must be generated elsewhere, downloaded manually or downloaded through code
 
 `/Habitats`: contains the needed files to translate ESA CCI land uses to IUCN habitats with the method proposed in Lumbierres et al 2021
 
