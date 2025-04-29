@@ -266,12 +266,12 @@ iucn <- tibble::tibble(
     'Wetlands',
     'Rocky Areas',
     'Desert',
-    'Artificial arable and pasture lands: Arable Land',
-    'Artificial arable and pasture lands: Pastureland',
-    'Artificial degraded forest and plantation: Plantations',
-    'Artificial degraded forest and plantation: Degraded Forest',
-    'Artificial urban and rural gardens: Rural Gardens',
-    'Artificial urban and rural gardens: Urban Areas',
+    'Artificial arable and pasture lands: Arable Land', # 1
+    'Artificial arable and pasture lands: Pastureland',# 2
+    'Artificial degraded forest and plantation: Plantations', # 3
+    'Artificial degraded forest and plantation: Degraded Forest', # 6
+    'Artificial urban and rural gardens: Rural Gardens', # 4
+    'Artificial urban and rural gardens: Urban Areas', # 5
     'Artificial Aquatic'
   ),
   description = c(
