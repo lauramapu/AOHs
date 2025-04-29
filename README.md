@@ -14,3 +14,7 @@ Based on the workflow conducted in Lumbierres et al 2022 to calculate Areas of H
 2. Since this is based on correlations, some of them at first seem incoherent such as croplands being classified as wetlands, but this concrete case might be explained by rice fields and other inundated croplands which are highly abundant in the tropical range.
 3. Some habitats are lost due to low correlations with every land use, such as savannahs. Maybe some cases should be reconsidered.
 4. In general, I found this translation a little bit confussing, so maybe it is good that some of you check that I did it right.
+
+### Other general considerations
+
+1. When filtering habitats per species with the IUCN package, some species get no habitat codes and thus no AOH area because nor suitable or marginal is set, just unknown.
