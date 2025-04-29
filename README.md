@@ -18,3 +18,4 @@ Based on the workflow conducted in Lumbierres et al 2022 to calculate Areas of H
 ### Other general considerations
 
 1. When filtering habitats per species with the IUCN package, some species get no habitat codes and thus no AOH area because nor suitable or marginal is set, just unknown.
+2. I suppose due to data availability issues, some species have their elevation range set to the same altitude for both min and max (see Dendromus vernayi).
