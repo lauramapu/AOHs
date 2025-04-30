@@ -22,7 +22,7 @@ files_info <- file.info(list.files(dir_path, recursive=TRUE, full.names = TRUE))
 empty_files <- files_info[files_info$size <= 1989, ]
 
 # load a random one
-random <- rast(rownames(empty_files)[21])
+random <- rast(rownames(empty_files)[22])
 plot(random) # empty indeed
 species_name <- random@pntr$names
 
@@ -43,7 +43,7 @@ base <- rast(base_files[3])
 dist <- base %>%
   crop(mammal) %>%
   mask(mammal)
-dist <- classify(dist, cbind(NA, 0)) # NAs complicate computations
+#dist <- classify(dist, cbind(NA, 0)) # NAs complicate computations
 unique(values(dist))
 # here we can see several pixel values with the suitable habitat according to IUCN
 # here it seems our problem is because artificial/terrestrial habitat is coded with '14' 
@@ -123,6 +123,7 @@ for (code_raw in habitat_codes) {
 # convert trues to ones
 binary_mask <- ifel(cond, 1, NA)
 names(binary_mask) <- mammal$sci_name
+plot(binary_mask)
 
 # FINALLY DONNEEEEEEEEE
 # we had three problems here
@@ -132,3 +133,5 @@ names(binary_mask) <- mammal$sci_name
 # minv and maxv so we did not have a range of elevation values so no values were taken
 
 # all these changes already implemented in scripts 02
+# checked randomly with #21, #42, #63, #20, #22
+# other issues arises but not related with this process but the previous selection of IUCN data
