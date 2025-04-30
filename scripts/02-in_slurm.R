@@ -16,7 +16,7 @@ store_slurm <- '/mnt/netapp1/Store_CSIC/home/csic/byc/abl/lamapu/AOHs/' # replac
 forest <- vect(paste0(store_slurm, 'Spatial_Data/Tropical_Forest/tropicalmask.shp'))
 
 # load translation csv 
-habitats <- read.csv(paste0(store_slurm, 'Habitats/translation_by_lumbierres.csv'))
+habitats <- read.csv('Habitats/translation_by_lumbierres.csv')
 is <- habitats$Value
 become <- habitats$code_lumbierres
 
@@ -161,7 +161,7 @@ for (i in seq_along(base_files)) {
     }
     
     # initialize logical raster (all FALSE)
-    cond <- dist
+    cond <- r
     cond[] <- FALSE
     
     for (code_raw in habitat_codes) {
@@ -192,7 +192,7 @@ for (i in seq_along(base_files)) {
       for (code in code_vec) {
         minv <- code * 1000 + lo_e
         maxv <- code * 1000 + hi_e
-        cond <- cond | (dist >= minv) & (dist <= maxv)
+        cond <- cond | (r >= minv) & (r <= maxv)
       }
     }
     
