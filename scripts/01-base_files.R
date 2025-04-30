@@ -5,7 +5,7 @@
 
 # there's a difference with the original work by Lumbierres et al (2022) because we need to use ESA-CCI
 # to have all years in our study range while she uses CGLS-LC100
-# also habitat translation could be better for some of them (croplands classified as wetlands :/)
+# also habitat translation is sometimes confusing
 
 # if an error occurs when crop/mask (terra) telling something like too many values to write read this:
 # https://github.com/rspatial/terra/issues/1686
@@ -42,21 +42,52 @@ writeVector(forest, 'Spatial_Data/Tropical_Forest/tropicalmask.shp', overwrite=T
 mammal_ranges <- terra::vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/MAMMALS_TERRESTRIAL_ONLY.shp')
 
 # here I select the ones used in Lumbierres et al 2022:
-# we selected range polygons with extant and probably extant presence; native, reintroduced,
+
+# "we selected range polygons with extant and probably extant presence; native, reintroduced,
 # and assisted colonization origin; and resident seasonality for non-migratory species
-# (all mammals and the 8,979 non-migratory birds)
+# (all mammals and the 8,979 non-migratory birds) [...].
+# For 18 mammal and 22 bird species categorized as Critical Endangered, there were no presence
+# polygons coded as extant or probably extant. To assist the conservation of these species,
+# we produced AOH maps using the possibly extinct polygon for these taxa."
 
-legend <- unique(mammal_ranges$legend)
+# codes of attributes are available in Spatial_Data/IUCN_Standard_attributes_for_spatial_data_v1.20_2024.xlsx
+# our interest codes are the following:
 
-extant <- legend[grep('^Extant ', legend)]
-extant <- extant[c(1,4,5)]
-pextant <- legend[grep('^Probably Extant ', legend)]
-pextant <- pextant[1]
-wanted_ranges <- c(extant, pextant)
-# revise this because I don't have it clear and change it if needed
+# $presence -> extant == 1; Probably extant == 2; Possibly Extinct == 4
+# $origin -> native == 1; reintroduced == 2, Assisted colonisation == 6
+# $seasonal -> resident == 1
 
-# Filter out wanted polygons
-mammal_ranges <- mammal_ranges[mammal_ranges$legend %in% wanted_ranges, ]
+# spatvector to df to operate better
+mammal_df <- as.data.frame(mammal_ranges, geom = "WKT")
+
+# extract CR species
+critical_species <- unique(mammal_df$sci_name[mammal_df$category == "CR"])
+
+# find CR species with no polygons $presence == 1 or 2
+cr_no_presence_12 <- mammal_df %>%
+  filter(sci_name %in% critical_species) %>%
+  group_by(sci_name) %>%
+  summarise(has_presence_12 = any(presence %in% c(1, 2))) %>%
+  filter(!has_presence_12) %>%
+  pull(sci_name)
+
+# set conditions
+# first for the original criteria
+condition_original <- 
+  (mammal_ranges$presence %in% c(1, 2)) &
+  (mammal_ranges$origin %in% c(1, 2, 6)) &
+  (mammal_ranges$seasonal == 1)
+
+# add presence == 4 polygons for CR species lacking of presence == 1 or 2
+condition_cr_presence4 <- 
+  (mammal_ranges$sci_name %in% cr_no_presence_12) & 
+  (mammal_ranges$presence == 4)
+
+# combine conditions
+final_condition <- condition_original | condition_cr_presence4
+
+# subset
+mammal_ranges <- mammal_ranges[final_condition, ]
 
 # Combine multiple polygons of each species into one.
 mammal_ranges <- mammal_ranges[, c('id_no','sci_name')]
@@ -69,7 +100,7 @@ rm(mammal_ranges)
 
 # save single shp
 terra::writeVector(tropical_ranges, 
-                   paste0('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/Terrestrial_Mammals_TropicalRanges.shp'),
+                   'Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/Terrestrial_Mammals_TropicalRanges.shp',
                    overwrite = TRUE)
 
 # #Save each species as single shp
@@ -100,9 +131,9 @@ mammals <- vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/Terrestrial_Ma
 # our field of interest is 'id_no' which is an identifier for each species
 species <- data.frame(id = unique(mammals$id_no), sci_name = unique(mammals$sci_name))
 
-# # this takes a lot of time so you can just unsilence this and load the files
-# mammal_habitat_preferences <- readRDS('Habitats/mammal_habitat_preferences.rds')
-# mammal_elevation_ranges <- readRDS('Habitats/mammal_elevation_ranges.rds')
+# this takes a lot of time so you can just unsilence this and load the files
+mammal_habitat_preferences <- readRDS('Habitats/mammal_habitat_preferences.rds')
+mammal_elevation_ranges <- readRDS('Habitats/mammal_elevation_ranges.rds')
 
 tic()
 for (i in 1:nrow(species)) {
