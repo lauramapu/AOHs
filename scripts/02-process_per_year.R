@@ -166,7 +166,7 @@ for (i in seq_along(base_files)) {
     }
     
     # initialize logical raster (all FALSE)
-    cond <- dist
+    cond <- r
     cond[] <- FALSE
     
     for (code_raw in habitat_codes) {
@@ -197,7 +197,7 @@ for (i in seq_along(base_files)) {
       for (code in code_vec) {
         minv <- code * 1000 + lo_e
         maxv <- code * 1000 + hi_e
-        cond <- cond | (dist >= minv) & (dist <= maxv)
+        cond <- cond | (r >= minv) & (r <= maxv)
       }
     }
     
