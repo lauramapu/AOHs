@@ -114,53 +114,55 @@ final_processing <- function(ranges, range_name) {
 }
 
 final_processing(non_migratory, 'nonmigratory')
-rm(non_migratory); gc()
+rm(non_migratory, condition_original, condition_cr_presence4, final_condition); gc()
 
 # migratory
 
 # set conditions
-# first for the original criteria
-condition_breeding <- 
-  (bird_ranges$sci_name %in% migratory) &
-  (bird_ranges$presence %in% c(1, 2)) &
-  (bird_ranges$origin %in% c(1, 2, 6)) &
-  (bird_ranges$seasonal == 2)
-condition_nonbreeding <- 
-  (bird_ranges$sci_name %in% migratory) &
-  (bird_ranges$presence %in% c(1, 2)) &
-  (bird_ranges$origin %in% c(1, 2, 6)) &
-  (bird_ranges$seasonal == 3)
-condition_resident <- 
-  (bird_ranges$sci_name %in% migratory) &
-  (bird_ranges$presence %in% c(1, 2)) &
-  (bird_ranges$origin %in% c(1, 2, 6)) &
-  (bird_ranges$seasonal %in% c(1, 5))
 
-# add presence == 4 polygons for CR species lacking of presence == 1 or 2
+# add presence == 4 polygons for CR species lacking of presence == 1 or 2 (common condition for all)
 condition_cr_presence4 <- 
   (bird_ranges$sci_name %in% migratory) &
   (bird_ranges$sci_name %in% cr_no_presence_12) & 
   (bird_ranges$presence == 4)
 
+# breeding polygons
+# the original criteria
+condition_breeding <- 
+  (bird_ranges$sci_name %in% migratory) &
+  (bird_ranges$presence %in% c(1, 2)) &
+  (bird_ranges$origin %in% c(1, 2, 6)) &
+  (bird_ranges$seasonal == 2)
 # combine conditions
 breeding <- condition_breeding | condition_cr_presence4
-nonbreeding <- condition_nonbreeding | condition_cr_presence4
-resident_uncertain <- condition_resident | condition_cr_presence4
-
 # subset and write
 breeding <- bird_ranges[breeding, ]
 final_processing(breeding, 'breeding')
-rm(breeding); gc()
+rm(breeding, condition_breeding); gc()
 
+# non-breeding polygons
+condition_nonbreeding <- 
+  (bird_ranges$sci_name %in% migratory) &
+  (bird_ranges$presence %in% c(1, 2)) &
+  (bird_ranges$origin %in% c(1, 2, 6)) &
+  (bird_ranges$seasonal == 3)
+nonbreeding <- condition_nonbreeding | condition_cr_presence4
 nonbreeding <- bird_ranges[nonbreeding, ]
 final_processing(nonbreeding, 'nonbreeding')
-rm(nonbreeding); gc()
+rm(nonbreeding, condition_nonbreeding); gc()
 
+# resident or uncertain polygons
+condition_resident <- 
+  (bird_ranges$sci_name %in% migratory) &
+  (bird_ranges$presence %in% c(1, 2)) &
+  (bird_ranges$origin %in% c(1, 2, 6)) &
+  (bird_ranges$seasonal %in% c(1, 5))
+resident_uncertain <- condition_resident | condition_cr_presence4
 resident_uncertain <- bird_ranges[resident_uncertain, ]
 final_processing(resident_uncertain, 'resident_uncertain')
-rm(resident_uncertain); gc()
+rm(resident_uncertain, condition_resident); gc()
 
-rm(bird_ranges, bird_df, forest); gc()
+rm(list=ls()); gc()
 
 ### 2. extract IUCN information on habitat and elevation range for each species
 
@@ -274,7 +276,7 @@ for (i in seq_along(base_files)) {
   # read and project base layer
   base <- base_files[i]
   base <- rast(base) %>%
-    project(birds, method='near')
+    project(vect(birds_files[1]), method='near')
   
   for (j in seq_along(birds_files)) {
     
