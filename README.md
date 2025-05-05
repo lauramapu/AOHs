@@ -13,7 +13,7 @@ Based on the workflow conducted in Lumbierres et al 2022 to calculate Areas of H
 1. IUCN habitats are described in very general terms, so we have a single category for all kind of forests, grasslands, etc.
 2. Since this is based on correlations, some of them at first seem incoherent such as croplands being classified as wetlands, but this concrete case might be explained by rice fields and other inundated croplands which are highly abundant in the tropical range.
 3. Some habitats are lost due to low correlations with every land use, such as savannahs. Maybe some cases should be reconsidered.
-4. In general, I found this translation a little bit confussing, so maybe it is good that some of you check that I did it right.
+4. In general, I found this translation a little bit confussing, so maybe it is good that some of you check that I did it right. I simply got the habitat with highest correlation value to translate each land use, Lumbierres uses thresholds but I found this confusing for the ESA-CCI land uses. This means each land use has different uncertainty to assign a habitat, but I guess this is assumed. 
 
 ### Other general considerations
 
