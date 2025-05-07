@@ -283,6 +283,34 @@ birds_files <- list.files('Spatial_Data/BirdLife_Range_Maps_Birds',
                           pattern='^[^.]*$', # match when do not contain dots
                           full.names=T)
 
+translation <- read.csv('Habitats/translation_by_lumbierres.csv')
+
+# function to convert habitat codes (e.g., "1_9", "14_4") to translation$code format (e.g., "H1", "H14.1")
+convert_habitat_code <- function(code_raw) {
+  # split code into main and subcomponents (e.g., "1_9" → c("1", "9"))
+  parts <- strsplit(as.character(code_raw), "_")[[1]]
+  main <- parts[1]
+  
+  # handle special case for "14" (has subgroups in translation)
+  if (main == "14") {
+    if (length(parts) == 1) {
+      # ff code is just "14", return all 14.x codes
+      return(paste0("H14.", 1:6))
+    } else {
+      # if code is "14_x", map to specific subgroup
+      subgroup <- parts[2]
+      if (subgroup %in% c("1", "2")) return("H14.1")
+      if (subgroup %in% c("3", "6")) return("H14.3")
+      if (subgroup %in% c("4", "5")) return("H14.4")
+      warning("Unknown 14 subgroup: ", code_raw)
+      return(NA)
+    }
+  } else {
+    # for all other codes, use main part (e.g., "1_9" → "H1")
+    return(paste0("H", main))
+  }
+}
+
 # nested loop in which first we select a year for the base layer
 # then a group of birds (non-migratory, breeding, non-breeding, resident-uncertain)
 # and then extract distributions for that year and group
@@ -293,9 +321,7 @@ for (i in seq_along(base_files)) {
   year <- regmatches(base_files[i], regexpr('\\d{4}', base_files[i]))
   
   # read and project base layer
-  base <- base_files[i]
-  base <- rast(base) %>%
-    project(vect(birds_files[1]), method='near')
+  base <- rast(base_files[i])
   
   for (j in seq_along(birds_files)) {
     
@@ -332,24 +358,10 @@ for (i in seq_along(base_files)) {
         mask(bird)
       
       # get habitat codes and elevation range from the current species
-      
-      # habitats must be selected for each season group
-      if (type == 'breeding') {
-        # get $Season 'Breeding Season' habitats only 
-        habitats <- hab_pref[[bird$IUCN_Species]]
-        habitats <- habitats[]
-      }
-      if (type == 'nonbreeding') {
-        # get $Season 'Non-Breeding Season' habitats only 
-      }
-      else { # non-migratory or resident-uncertain
-        # get 'Resident'
-      }
-      
-      habitat_codes <- habitats[[bird$IUCN_Species]]$Habitat_Code
+      habitat_codes <- hab_pref[[bird$IUCN_Species]]$Habitat_Code
+      # # if there are no suitable habitats, we assume all habitats are suitable
       # if (is.null(habitat_codes)){
-      #   habitat_codes <- c(1:14, '14_1', '14-2', '14_3', '14_4', '14_5', '14_6')
-      #   # we assume all habitats are suitable
+      #   habitat_codes <- c(1:8, '14_1', '14-2', '14_3', '14_4', '14_5', '14_6', 15)
       # }
       elevation_range <- elev_range[[bird$IUCN_Species]]
       
@@ -369,26 +381,18 @@ for (i in seq_along(base_files)) {
       
       for (code_raw in habitat_codes) {
         
-        # Handle special cases for codes starting with '14'
-        if (startsWith(as.character(code_raw), '14')) {
-          
-          # Convert to proper numeric code based on suffix
-          if (code_raw == '14') {
-            code_vec <- 140:149  # Expand 14 to 140–149
-          } else if (code_raw == '14_1' || code_raw == '14_2') {
-            code_vec <- 141
-          } else if (code_raw == '14_3' || code_raw == '14_6') {
-            code_vec <- 143
-          } else if (code_raw == '14_4' || code_raw == '14_5') {
-            code_vec <- 144
-          }
-          
-        } else {
-          # For all other codes: just erase subgroup and convert to numeric
-          code_vec <- as.numeric(gsub("_.*", "", code_raw))
-        }
+        # convert raw code to translation$code format
+        code_conv <- convert_habitat_code(code_raw)
         
-        # Apply condition logic for one or multiple habitat codes
+        # get landuse codes for the hightest tertile only
+        # (this can be modified if lower tertiles are needed)
+        landuse_codes <- translation[translation$code==code_conv,'thr_high_code'] 
+        # convert to numeric
+        code_vec <- as.numeric(strsplit(landuse_codes, ";", fixed = TRUE)[[1]])
+        
+        # apply logic condition to each land use code
+        # landuse * 1000 and between min-max elevation
+        # operator | ensures this process is additive
         for (code in code_vec) {
           minv <- code * 1000 + lo_e
           maxv <- code * 1000 + hi_e
