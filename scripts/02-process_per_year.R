@@ -172,6 +172,10 @@ for (i in seq_along(base_files)) {
     
     # get habitat codes and elevation range from the current species
     habitat_codes <- hab_pref[[mammal$sci_name]]$Habitat_Code
+    if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == "") {
+      cat('Species', mammal$sci_name, 'skipped because no suitable habitat found in IUCN API.\n')
+      next
+    }
     # # if there are no suitable habitats, we assume all habitats are suitable
     # if (is.null(habitat_codes)){
     #   habitat_codes <- c(1:8, '14_1', '14-2', '14_3', '14_4', '14_5', '14_6', 15)
@@ -197,7 +201,7 @@ for (i in seq_along(base_files)) {
       # convert raw code to translation$code format
       code_conv <- convert_habitat_code(code_raw)
       
-      # get landuse codes for the hightest tertile only
+      # get landuse codes for the highest tertile only
       # (this can be modified if lower tertiles are needed)
       landuse_codes <- translation[translation$code==code_conv,'thr_high_code'] 
       # convert to numeric
