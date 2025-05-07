@@ -1,4 +1,4 @@
-# Areas of Habitat for tropical terrestrial mammals
+# Areas of Habitat for tropical terrestrial mammals and birds
 
 Based on the workflow conducted in Lumbierres et al 2022 to calculate Areas of Habitat for all tropical terrestrial mammals.
 
