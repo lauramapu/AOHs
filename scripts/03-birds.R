@@ -233,7 +233,7 @@ for (i in 1:nrow(allspecies)) {
   if (!is.null(habitats) && nrow(habitats) > 0) {
     habitats <- habitats %>%
       filter(suitability == "Suitable") %>%
-      select("Description" = description, "Habitat_Code" = code) %>%
+      select("Description" = description, "Habitat_Code" = code, 'Season' = season) %>%
       distinct()
     
     # Store result with species name
@@ -273,14 +273,14 @@ saveRDS(bird_elevation_ranges, 'Habitats/bird_elevation_ranges.rds')
 # (see https://future.futureverse.org/articles/future-4-non-exportable-objects.html for more info)
 
 hab_pref <- readRDS('Habitats/bird_habitat_preferences.rds')
-elev_range <- readRDS('Habitats/mbird_elevation_ranges.rds')
+elev_range <- readRDS('Habitats/bird_elevation_ranges.rds')
 
 base_files <- list.files('Spatial_Data/AOHs/baselayers', 
                          pattern='.tif',
                          full.names=T)
 
 birds_files <- list.files('Spatial_Data/BirdLife_Range_Maps_Birds',
-                          pattern='.shp',
+                          pattern='^[^.]*$', # match when do not contain dots
                           full.names=T)
 
 # nested loop in which first we select a year for the base layer
@@ -300,9 +300,12 @@ for (i in seq_along(base_files)) {
   for (j in seq_along(birds_files)) {
     
     # get type of bird
-    type <- regmatches(birds_files[j], regexpr('\\d{4}', birds_files[j]))
+    type <- basename(birds_files[j])
     
     birds <- vect(birds_files[j])
+    
+    set.seed(123)
+    birds <- birds[sample(nrow(birds), 10), ] # 10 random species to check
     
     # habitats are classified per seasonality, so for each group of ranges we must select the proper groups
     ########################################
@@ -315,7 +318,7 @@ for (i in seq_along(base_files)) {
       
       # get species
       bird <- birds[k, ]
-      output_file <- paste0(output_dir, '/', bird$sci_name, '.tif')
+      output_file <- paste0(output_dir, '/', bird$IUCN_Species, '.tif')
       
       # skip if the species is already processed
       if (file.exists(output_file)) {
@@ -329,8 +332,26 @@ for (i in seq_along(base_files)) {
         mask(bird)
       
       # get habitat codes and elevation range from the current species
-      habitat_codes <- hab_pref[[bird$sci_name]]$Habitat_Code
-      elevation_range <- elev_range[[bird$sci_name]]
+      
+      # habitats must be selected for each season group
+      if (type == 'breeding') {
+        # get $Season 'Breeding Season' habitats only 
+        habitats <- hab_pref[[bird$IUCN_Species]]
+        habitats <- habitats[]
+      }
+      if (type == 'nonbreeding') {
+        # get $Season 'Non-Breeding Season' habitats only 
+      }
+      else { # non-migratory or resident-uncertain
+        # get 'Resident'
+      }
+      
+      habitat_codes <- habitats[[bird$IUCN_Species]]$Habitat_Code
+      # if (is.null(habitat_codes)){
+      #   habitat_codes <- c(1:14, '14_1', '14-2', '14_3', '14_4', '14_5', '14_6')
+      #   # we assume all habitats are suitable
+      # }
+      elevation_range <- elev_range[[bird$IUCN_Species]]
       
       # compute elevation thresholds (/10)
       lo_e <- elevation_range$Lower_Elevation_Limit / 10
@@ -360,9 +381,6 @@ for (i in seq_along(base_files)) {
             code_vec <- 143
           } else if (code_raw == '14_4' || code_raw == '14_5') {
             code_vec <- 144
-          } else {
-            warning(paste("Unknown 14_x code:", code_raw))
-            next
           }
           
         } else {
