@@ -329,13 +329,7 @@ for (i in seq_along(base_files)) {
     type <- basename(birds_files[j])
     
     birds <- vect(birds_files[j])
-    
-    set.seed(123)
-    birds <- birds[sample(nrow(birds), 10), ] # 10 random species to check
-    
-    # habitats are classified per seasonality, so for each group of ranges we must select the proper groups
-    ########################################
-    
+
     # generate output path per year and type of bird
     output_dir <- paste0('Spatial_Data/AOHs/', type, '/', year, '/')
     if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -358,7 +352,20 @@ for (i in seq_along(base_files)) {
         mask(bird)
       
       # get habitat codes and elevation range from the current species
-      habitat_codes <- hab_pref[[bird$IUCN_Species]]$Habitat_Code
+      habitats <- hab_pref[[bird$IUCN_Species]]
+      # with birds we must select the proper season
+      if (type == 'breeding') {
+        habitat_codes <- habitats[habitats$Season=='Breeding Season', ]$Habitat_Code
+      } else if (type == 'nonbreeding') {
+        habitat_codes <- habitats[habitats$Season=='Non-Breeding Season', ]$Habitat_Code
+      } else {
+        habitat_codes <- habitats[habitats$Season=='Resident', ]$Habitat_Code
+      }
+      if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == "") {
+        cat('Species', bird$IUCN_Species, 'and', type, 'season', 'skipped because no suitable habitat found in IUCN API.\n')
+        next
+      }
+      
       # # if there are no suitable habitats, we assume all habitats are suitable
       # if (is.null(habitat_codes)){
       #   habitat_codes <- c(1:8, '14_1', '14-2', '14_3', '14_4', '14_5', '14_6', 15)
@@ -387,6 +394,10 @@ for (i in seq_along(base_files)) {
         # get landuse codes for the hightest tertile only
         # (this can be modified if lower tertiles are needed)
         landuse_codes <- translation[translation$code==code_conv,'thr_high_code'] 
+        if (length(landuse_codes) == 0 || is.na(landuse_codes) || landuse_codes == "") {
+          cat('Species', bird$IUCN_Species, '+' , type, 'season + and habitat code', code_conv, 'skipped because habitat is not terrestrial.\n')
+          next
+        }
         # convert to numeric
         code_vec <- as.numeric(strsplit(landuse_codes, ";", fixed = TRUE)[[1]])
         
