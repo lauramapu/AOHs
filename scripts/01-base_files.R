@@ -214,10 +214,9 @@ srtm <- srtm_merged %>%
 
 writeRaster(srtm, 'Spatial_Data/SRTM90/strm_300m_trop.tif', overwrite=T)
 
-### 4. translate ESA-CCI land uses to habitats as described in IUCN basing on Lumbierres et al 2021
+### 4. translate habitats as described in IUCN to ESA-CCI land uses basing on Lumbierres et al 2021 method
 
-# this step is a little confusing
-# if you don't need to revise you can just load 'Habitats/translation_by_lumbierres.csv' in the following script
+# Lumbierres generates correlations between habitats and land uses and she provides thresholds to convert 
 
 # first load correspondences between esa and iucn
 # table from Lumbierres et al 2021 (Figure 3)
@@ -272,17 +271,6 @@ cci_legend <- read_xlsx('Habitats/CCI-LC_Maps_Legend.xlsx') %>%
     'Water bodies'
   ))
 
-# extract habitat class with highest positive correlation value to each land use
-# (this may be adjusted but I just took the hightest)
-numeric_cols <- translation %>% select(where(is.numeric)) %>% names()
-translation <- translation %>%
-  rowwise() %>%
-  mutate(
-    max_value = max(c_across(all_of(numeric_cols)), na.rm = TRUE),
-    habitat = numeric_cols[which.max(c_across(all_of(numeric_cols)))]
-  ) %>%
-  ungroup()
-
 # iucn habitats with code and description (extracted from sup materials in Lumbierres et al 2021)
 iucn <- tibble::tibble(
   code = c(
@@ -327,7 +315,7 @@ iucn <- tibble::tibble(
     'Shrubland',
     'Grassland',
     'Wetlands',
-    'Rocky Areas',
+    'Rocky areas',
     'Desert',
     'Artificial arable and pasture lands',
     'Artificial arable and pasture lands',
@@ -335,28 +323,101 @@ iucn <- tibble::tibble(
     'Artificial degraded forest and plantation',
     'Artificial urban areas and rural gardens',
     'Artificial urban areas and rural gardens',
-    'Artificial Aquatic'
-  ),
-  code_lumbierres = c(
-    1, 2, 3, 4, 5, 6, 8, 141, 141, 143, 143, 144, 144, 150 # again she groups some of them 
+    'Artificial aquatic'
   )
 )
 
-# new df matching things
-# select meaningful columns in the cci legend
-habitats <- cci_legend %>%
-  select(Value, Label, lumbierres)
+# tertiles:
+# low: 1.138:1.351
+# mid: 1.362:1.712
+# high: 1.743-13.720
 
-# join habitat translation 
-colnames(translation)[1] <- 'lumbierres'
-habitats <- left_join(habitats, translation, by = 'lumbierres')
+# so for each tertile we are creating two columns (one for name and other for code)
 
-# join habitat codes
-habitats <- left_join(habitats, iucn, by = 'habitat')
+# names
+iucn$thr_low <- NA_character_
+iucn$thr_mid <- NA_character_
+iucn$thr_high <- NA_character_
 
-# clean and save
-habitats <- habitats %>%
-  select(Value, Label, lumbierres, habitat, code_lumbierres)
-habitats$code_lumbierres[1] <- 0
+# codes
+iucn$thr_low_code <- NA_character_
+iucn$thr_mid_code <- NA_character_
+iucn$thr_high_code <- NA_character_
 
-write.csv(habitats, 'Habitats/translation_by_lumbierres.csv', row.names=F)
+# define thresholds
+thresholds <- list(
+  low = c(1.138, 1.351),
+  mid = c(1.362, 1.712),
+  high = c(1.743, 13.720)
+)
+
+# iterate through each habitat in iucn
+for (i in 1:nrow(iucn)) {
+  habitat_name <- iucn$habitat[i]
+  
+  if (!habitat_name %in% colnames(translation)) next
+  
+  # initialize lists for names and codes
+  low_classes <- mid_classes <- high_classes <- character()
+  low_codes <- mid_codes <- high_codes <- character()
+  
+  for (j in 1:nrow(translation)) {
+    thr_class <- translation$`IUCN habitat class Land-cover class`[j]
+    value <- translation[[habitat_name]][j]
+    
+    if (!is.na(value)) {
+      # get corresponding codes from cci_legend (may be multiple)
+      codes <- cci_legend$Value[cci_legend$lumbierres == thr_class]
+      codes_str <- paste(codes, collapse = "; ")  # combine multiple codes
+      
+      if (value >= thresholds$low[1] && value <= thresholds$low[2]) {
+        low_classes <- c(low_classes, thr_class)
+        low_codes <- c(low_codes, codes_str)
+      } else if (value >= thresholds$mid[1] && value <= thresholds$mid[2]) {
+        mid_classes <- c(mid_classes, thr_class)
+        mid_codes <- c(mid_codes, codes_str)
+      } else if (value >= thresholds$high[1] && value <= thresholds$high[2]) {
+        high_classes <- c(high_classes, thr_class)
+        high_codes <- c(high_codes, codes_str)
+      }
+    }
+  }
+  
+  # assign names and codes
+  if (length(low_classes) > 0) {
+    iucn$thr_low[i] <- paste(low_classes, collapse = "; ")
+    iucn$thr_low_code[i] <- paste(low_codes, collapse = "; ")
+  }
+  if (length(mid_classes) > 0) {
+    iucn$thr_mid[i] <- paste(mid_classes, collapse = "; ")
+    iucn$thr_mid_code[i] <- paste(mid_codes, collapse = "; ")
+  }
+  if (length(high_classes) > 0) {
+    iucn$thr_high[i] <- paste(high_classes, collapse = "; ")
+    iucn$thr_high_code[i] <- paste(high_codes, collapse = "; ")
+  }
+}
+
+# somehow we get many NAs in the middle of the strings, so we need to clean
+
+# function to remove NA from strings
+clean_na_strings <- function(x) {
+  if (is.na(x)) {
+    return(NA_character_)  # keep original NA values
+  }
+  # split string, remove "NA", and recombine
+  parts <- strsplit(x, "; ")[[1]]
+  parts_clean <- parts[parts != "NA"]
+  if (length(parts_clean) == 0) {
+    return(NA_character_)  # return NA if all parts were "NA"
+  } else {
+    return(paste(parts_clean, collapse = "; "))
+  }
+}
+
+# apply cleaning to all code columns
+iucn$thr_low_code <- sapply(iucn$thr_low_code, clean_na_strings)
+iucn$thr_mid_code <- sapply(iucn$thr_mid_code, clean_na_strings)
+iucn$thr_high_code <- sapply(iucn$thr_high_code, clean_na_strings)
+
+write.csv(iucn, 'Habitats/translation_by_lumbierres.csv', row.names=F)
