@@ -15,8 +15,6 @@ library(tictoc)
 library(purrr)
 
 forest <- vect('Spatial_Data/Tropical_Forest/tropicalmask.shp')
-# Project forest mask to ranges projection
-forest <- terra::project(forest, crs(bird_ranges))
 
 ### 1. crop BirdLife distributions with tropical forest mask and save
 # this step extracted from script 02 by iago
@@ -32,6 +30,9 @@ iucn_cats <- as.data.frame(terra::vect("Spatial_Data/BirdLife_Range_Maps_Birds/B
 bird_df <- as.data.frame(bird_ranges, geom = "WKT")
 bird_df <- left_join(bird_df, iucn_cats[, c('sisid', 'F2022_IUCN_RedList_Category')], by = 'sisid')
 rm(iucn_cats)
+
+# Project forest mask to ranges projection
+forest <- terra::project(forest, crs(bird_ranges))
 
 # here I select the ones used in Lumbierres et al 2022:
 
@@ -78,6 +79,8 @@ cr_no_presence_12 <- bird_df %>%
   filter(!has_presence_12) %>%
   pull(sci_name)
 
+rm(bird_df); gc()
+
 # non-migratory
 
 # set conditions
@@ -109,7 +112,8 @@ final_processing <- function(ranges, range_name) {
   tropical_ranges <- terra::intersect(ranges, forest)
   tropical_ranges <-terra::simplifyGeom(tropical_ranges, tolerance = 0.01) #keep tolerance super low
   terra::writeVector(tropical_ranges,
-                     paste0('Spatial_Data/BirdLife_Range_Maps_Birds/', range_name, 'shp'),
+                     # no format so it writes a single file, we read the same way as any spatial file
+                     paste0('Spatial_Data/BirdLife_Range_Maps_Birds/', range_name),
                      overwrite = TRUE)
 }
 
@@ -118,14 +122,6 @@ rm(non_migratory, condition_original, condition_cr_presence4, final_condition); 
 
 # migratory
 
-# set conditions
-
-# add presence == 4 polygons for CR species lacking of presence == 1 or 2 (common condition for all)
-condition_cr_presence4 <- 
-  (bird_ranges$sci_name %in% migratory) &
-  (bird_ranges$sci_name %in% cr_no_presence_12) & 
-  (bird_ranges$presence == 4)
-
 # breeding polygons
 # the original criteria
 condition_breeding <- 
@@ -133,12 +129,19 @@ condition_breeding <-
   (bird_ranges$presence %in% c(1, 2)) &
   (bird_ranges$origin %in% c(1, 2, 6)) &
   (bird_ranges$seasonal == 2)
+# add presence == 4 polygons for CR species lacking of presence == 1 or 2 
+condition_cr_presence4 <- 
+  (bird_ranges$sci_name %in% migratory) &
+  (bird_ranges$sci_name %in% cr_no_presence_12) & 
+  (bird_ranges$presence == 4) &
+  (bird_ranges$seasonal == 2)
 # combine conditions
 breeding <- condition_breeding | condition_cr_presence4
 # subset and write
 breeding <- bird_ranges[breeding, ]
+rm(condition_breeding, condition_cr_presence4); gc()
 final_processing(breeding, 'breeding')
-rm(breeding, condition_breeding); gc()
+rm(breeding); gc()
 
 # non-breeding polygons
 condition_nonbreeding <- 
@@ -146,10 +149,16 @@ condition_nonbreeding <-
   (bird_ranges$presence %in% c(1, 2)) &
   (bird_ranges$origin %in% c(1, 2, 6)) &
   (bird_ranges$seasonal == 3)
+condition_cr_presence4 <- 
+  (bird_ranges$sci_name %in% migratory) &
+  (bird_ranges$sci_name %in% cr_no_presence_12) & 
+  (bird_ranges$presence == 4) &
+  (bird_ranges$seasonal == 3)
 nonbreeding <- condition_nonbreeding | condition_cr_presence4
 nonbreeding <- bird_ranges[nonbreeding, ]
+rm(condition_nonbreeding, condition_cr_presence4); gc()
 final_processing(nonbreeding, 'nonbreeding')
-rm(nonbreeding, condition_nonbreeding); gc()
+rm(nonbreeding); gc()
 
 # resident or uncertain polygons
 condition_resident <- 
@@ -157,32 +166,42 @@ condition_resident <-
   (bird_ranges$presence %in% c(1, 2)) &
   (bird_ranges$origin %in% c(1, 2, 6)) &
   (bird_ranges$seasonal %in% c(1, 5))
+condition_cr_presence4 <- 
+  (bird_ranges$sci_name %in% migratory) &
+  (bird_ranges$sci_name %in% cr_no_presence_12) & 
+  (bird_ranges$presence == 4) &
+  (bird_ranges$seasonal %in% c(1, 5))
 resident_uncertain <- condition_resident | condition_cr_presence4
 resident_uncertain <- bird_ranges[resident_uncertain, ]
+rm(condition_resident, condition_cr_presence4); gc()
 final_processing(resident_uncertain, 'resident_uncertain')
-rm(resident_uncertain, condition_resident); gc()
+rm(resident_uncertain); gc()
 
 rm(list=ls()); gc()
 
 ### 2. extract IUCN information on habitat and elevation range for each species
 
-allbirds <- list.files('Spatial_Data/BirdLife_Range_Maps_Birds', pattern='.shp',
-                         full.names=T) %>%
-  vect() %>%
-  as.data.frame()
+allbirds <- list.files('Spatial_Data/BirdLife_Range_Maps_Birds', pattern='',
+                         full.names=T)[2:5] %>%
+  lapply(vect) %>%
+  lapply(as.data.frame)
 
 allspecies <- data.frame()
 for (i in seq_along(allbirds)) {
   ranges <- allbirds[[i]]
-  species <- unique(ranges$sci_name)
-  ids <- unique(ranges$sisid)
+  species <- ranges$IUCN_Species
+  ids <- ranges$IUCN_ID
   allspecies <- rbind(allspecies, data.frame(sci_name=species, sisid=ids))
 }
-allspecies <- # erase duplicates
+allspecies <- distinct(allspecies) # erase duplicates
 
 # Initialize habitat preferences list
 bird_habitat_preferences <- list()
 bird_elevation_ranges <- list()
+
+# initialize token and api
+token <- 'D98jKWcys1KfrHVAngXsno85KWjNw6s2qyyt'  # better if you get your own token
+api <- init_api(token) 
 
 tic()
 for (i in 1:nrow(allspecies)) {
@@ -241,7 +260,7 @@ for (i in 1:nrow(allspecies)) {
   
   bird_elevation_ranges[[species_name]] <- elevation_data
 }
-toc()
+toc() # 40425.73 sec elapsed
 
 saveRDS(bird_habitat_preferences, 'Habitats/bird_habitat_preferences.rds')
 saveRDS(bird_elevation_ranges, 'Habitats/bird_elevation_ranges.rds')
@@ -284,6 +303,9 @@ for (i in seq_along(base_files)) {
     type <- regmatches(birds_files[j], regexpr('\\d{4}', birds_files[j]))
     
     birds <- vect(birds_files[j])
+    
+    # habitats are classified per seasonality, so for each group of ranges we must select the proper groups
+    ########################################
     
     # generate output path per year and type of bird
     output_dir <- paste0('Spatial_Data/AOHs/', type, '/', year, '/')
