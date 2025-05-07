@@ -147,7 +147,7 @@ for (i in seq_along(base_files)) {
   year <- regmatches(base_files[i], regexpr('\\d{4}', base_files[i]))
   
   # generate output path per year
-  output_dir <- paste0('Spatial_Data/AOHs/', year, '/')
+  output_dir <- paste0('Spatial_Data/AOHs/mammals/', year, '/')
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
   
   # read base layer
