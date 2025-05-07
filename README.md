@@ -11,12 +11,11 @@ Based on the workflow conducted in Lumbierres et al 2022 to calculate Areas of H
 ### Some general considerations about the translation CCI-IUCN
 
 1. IUCN habitats are described in very general terms, so we have a single category for all kind of forests, grasslands, etc.
-2. Since this is based on correlations, some of them at first seem incoherent such as croplands being classified as wetlands, but this concrete case might be explained by rice fields and other inundated croplands which are highly abundant in the tropical range.
-3. Some habitats are lost due to low correlations with every land use, such as savannahs. Maybe some cases should be reconsidered.
-4. In general, I found this translation a little bit confussing, so maybe it is good that some of you check that I did it right. I simply got the habitat with highest correlation value to translate each land use, Lumbierres uses thresholds but I found this confusing for the ESA-CCI land uses. This means each land use has different uncertainty to assign a habitat, but I guess this is assumed. 
+2. Some habitats get no land use correlations in certain tertiles, such as rocky areas and artificial aquatic in low tertile, and artificial degraded forest and platation in high tertile, so might be lost in translation (look for them in tokyo :P).
 
 ### Other general considerations
 
-1. When filtering habitats per species with the IUCN package, some species get no habitat codes and thus no AOH area because nor suitable or marginal is set, just unknown.
-2. I suppose due to data availability issues, some species have their elevation range set to the same altitude for both min and max (see Dendromus vernayi).
-3. Birds with category Critical Endangered and with code 4 (possibly extinct) in attribute 'presence' are only 2 while in the original paper Lumbierres says they are 22, I guess either the category or code for those species changed but I did not had time to check that. 
+1. When filtering habitats per species with the IUCN package, some species get no habitat codes and in those cases I assumed no habitats are suitable so no AOH can be generated for the species. This happens for some birds (I think) and for some mammals that has some habitats coded as Unkwonn instead of Suitable or Marginal. There is a silenced line in the AOH generation in which you can set all habitats as suitable or you can also add Unknown habitats when extracting data through the IUCN API.
+2. I suppose due to data availability issues, some species have their elevation range set to the same altitude for both min and max (see Dendromus vernayi). This limits a lot the generated AOH.
+3. I am almost sure that there are no issues at all with the mammals workflow because I deeply checked results, but I cannot say the same for birds because I did not had enough time.
+4. Birds with category Critical Endangered and with code 4 (possibly extinct) in attribute 'presence' are only 2 while in the original paper Lumbierres says they are 22, I guess either the category or code for those species changed but I did not had time to check that. 
