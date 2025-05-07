@@ -13,19 +13,15 @@ library(purrr)
 
 forest <- vect('Spatial_Data/Tropical_Forest/tropicalmask.shp')
 
-# load translation csv 
-habitats <- read.csv('Habitats/translation_by_lumbierres.csv')
-is <- habitats$Value
-become <- habitats$code_lumbierres
-
 # load srtm
 srtm <- rast('Spatial_Data/SRTM90/strm_300m_trop.tif')
 
 # download all needed ESA files
 # in the following vector just write down the years you want
 years <- c(1995, 2000, 2005, 2010, 2015)
+
 # set download directory
-download_dir <- 'Spatial_Data/ESA-LC'
+download_dir <- 'Spatial_Data/ESA-LC/'
 # iterate though these years
 for (i in years) {
   year <- years[i]
@@ -57,10 +53,11 @@ imap(esa_files, function(esa, i) { # use imap instead of lapply to get index
   # extract year from filename
   year <- regmatches(basename(sources(esa)), regexpr('\\d{4}', basename(sources(esa))))
   
-  # crop and mask
+  # crop, mask and multiply per 1000
   x <- esa %>% 
     crop(forest) %>% 
-    mask(forest)
+    mask(forest) %>%
+    app(fun = function(x) {x*1000})
   
   # # save
   # out_name <- paste0(output_dir, 'esa_', year, '_trop.tif')
@@ -77,18 +74,8 @@ imap(esa_files, function(esa, i) { # use imap instead of lapply to get index
   }
   else {}
   
-  # reclass land uses to habitats 
-  y <- subst(x, is, become)
-  # y <- classify(ESA, cbind(is, become)) # another solution
-  
-  # multiply per 1000
-  y <- app(y, fun = function(i) {i*1000})
-  
-  # out_name <- paste0(output_dir, 'esa_', year, '_reclass.tif')
-  # writeRaster(y, out_name, overwrite=T)
-  
   # and sum to srtm
-  habitat_elev <- srtm + y
+  habitat_elev <- srtm + x
 
   # the resulting tif has pixels coded so that first 3 numbers are habitat (from 1 to 150)
   # and last 3 numbers are elev/10 (should range from 0 to 700 or something like that because top elevation is ~7000m)
@@ -102,7 +89,7 @@ imap(esa_files, function(esa, i) { # use imap instead of lapply to get index
 
 rm(srtm, esa_files)
 
-### 2. finally, generate AoH for each species using the habitat-elevation tif
+### 2. finally, generate AoH for each species using the landuse-elevation tif
 
 # this process can't be parallelized in local because not enough RAM (some iterations take more than 50gb)
 # if you want to send this to cesga and parallelize, you must wrap/unwrap spatraster/spatvector objects
@@ -118,6 +105,40 @@ base_files <- list.files('Spatial_Data/AOHs/baselayers',
                          pattern='.tif',
                          full.names=T)
 
+translation <- read.csv('Habitats/translation_by_lumbierres.csv')
+
+# function to convert habitat codes (e.g., "1_9", "14_4") to translation$code format (e.g., "H1", "H14.1")
+convert_habitat_code <- function(code_raw) {
+  # split code into main and subcomponents (e.g., "1_9" → c("1", "9"))
+  parts <- strsplit(as.character(code_raw), "_")[[1]]
+  main <- parts[1]
+  
+  # handle special case for "14" (has subgroups in translation)
+  if (main == "14") {
+    if (length(parts) == 1) {
+      # ff code is just "14", return all 14.x codes
+      return(paste0("H14.", 1:6))
+    } else {
+      # if code is "14_x", map to specific subgroup
+      subgroup <- parts[2]
+      if (subgroup %in% c("1", "2")) return("H14.1")
+      if (subgroup %in% c("3", "6")) return("H14.3")
+      if (subgroup %in% c("4", "5")) return("H14.4")
+      warning("Unknown 14 subgroup: ", code_raw)
+      return(NA)
+    }
+  } else {
+    # for all other codes, use main part (e.g., "1_9" → "H1")
+    return(paste0("H", main))
+  }
+}
+
+# check that this works
+convert_habitat_code("1_9")    # Returns "H1"
+convert_habitat_code("14_4")   # Returns "H14.4"
+convert_habitat_code("14")     # Returns c("H14.1", "H14.2", ..., "H14.6")
+convert_habitat_code("5")      # Returns "H5"
+
 # nested loop in which first we select a year for the base layer
 # and then extract distributions for that year
 for (i in seq_along(base_files)) {
@@ -129,11 +150,9 @@ for (i in seq_along(base_files)) {
   output_dir <- paste0('Spatial_Data/AOHs/', year, '/')
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
   
-  # read and project base layer
-  base <- base_files[i]
-  base <- rast(base) %>%
-    project(mammals, method='near')
-  
+  # read base layer
+  base <- rast(base_files[i])
+
   for (j in seq_along(mammals)) {
     
     # get species
@@ -153,6 +172,10 @@ for (i in seq_along(base_files)) {
     
     # get habitat codes and elevation range from the current species
     habitat_codes <- hab_pref[[mammal$sci_name]]$Habitat_Code
+    # # if there are no suitable habitats, we assume all habitats are suitable
+    # if (is.null(habitat_codes)){
+    #   habitat_codes <- c(1:8, '14_1', '14-2', '14_3', '14_4', '14_5', '14_6', 15)
+    # }
     elevation_range <- elev_range[[mammal$sci_name]]
     
     # compute elevation thresholds (/10)
@@ -171,29 +194,18 @@ for (i in seq_along(base_files)) {
     
     for (code_raw in habitat_codes) {
       
-      # Handle special cases for codes starting with '14'
-      if (startsWith(as.character(code_raw), '14')) {
-        
-        # Convert to proper numeric code based on suffix
-        if (code_raw == '14') {
-          code_vec <- 140:149  # Expand 14 to 140–149
-        } else if (code_raw == '14_1' || code_raw == '14_2') {
-          code_vec <- 141
-        } else if (code_raw == '14_3' || code_raw == '14_6') {
-          code_vec <- 143
-        } else if (code_raw == '14_4' || code_raw == '14_5') {
-          code_vec <- 144
-        } else {
-          warning(paste("Unknown 14_x code:", code_raw))
-          next
-        }
-        
-      } else {
-        # For all other codes: just erase subgroup and convert to numeric
-        code_vec <- as.numeric(gsub("_.*", "", code_raw))
-      }
+      # convert raw code to translation$code format
+      code_conv <- convert_habitat_code(code_raw)
       
-      # Apply condition logic for one or multiple habitat codes
+      # get landuse codes for the hightest tertile only
+      # (this can be modified if lower tertiles are needed)
+      landuse_codes <- translation[translation$code==code_conv,'thr_high_code'] 
+      # convert to numeric
+      code_vec <- as.numeric(strsplit(landuse_codes, ";", fixed = TRUE)[[1]])
+      
+      # apply logic condition to each land use code
+      # landuse * 1000 and between min-max elevation
+      # operator | ensures this process is additive
       for (code in code_vec) {
         minv <- code * 1000 + lo_e
         maxv <- code * 1000 + hi_e
