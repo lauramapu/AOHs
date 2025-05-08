@@ -110,37 +110,37 @@ base_files <- list.files(paste0(store_slurm, 'Spatial_Data/AOHs/baselayers'),
 
 translation <- read.csv('Habitats/translation_by_lumbierres.csv')
 
-# function to convert habitat codes (e.g., "1_9", "14_4") to translation$code format (e.g., "H1", "H14.1")
+# function to convert habitat codes (e.g., '1_9', '14_4') to translation$code format (e.g., 'H1', 'H14.1')
 convert_habitat_code <- function(code_raw) {
-  # split code into main and subcomponents (e.g., "1_9" → c("1", "9"))
-  parts <- strsplit(as.character(code_raw), "_")[[1]]
+  # split code into main and subcomponents (e.g., '1_9' → c('1', '9'))
+  parts <- strsplit(as.character(code_raw), '_')[[1]]
   main <- parts[1]
   
-  # handle special case for "14" (has subgroups in translation)
-  if (main == "14") {
+  # handle special case for '14' (has subgroups in translation)
+  if (main == '14') {
     if (length(parts) == 1) {
-      # ff code is just "14", return all 14.x codes
-      return(paste0("H14.", 1:6))
+      # ff code is just '14', return all 14.x codes
+      return(paste0('H14.', 1:6))
     } else {
-      # if code is "14_x", map to specific subgroup
+      # if code is '14_x', map to specific subgroup
       subgroup <- parts[2]
-      if (subgroup %in% c("1", "2")) return("H14.1")
-      if (subgroup %in% c("3", "6")) return("H14.3")
-      if (subgroup %in% c("4", "5")) return("H14.4")
-      warning("Unknown 14 subgroup: ", code_raw)
+      if (subgroup %in% c('1', '2')) return('H14.1')
+      if (subgroup %in% c('3', '6')) return('H14.3')
+      if (subgroup %in% c('4', '5')) return('H14.4')
+      warning('Unknown 14 subgroup: ', code_raw)
       return(NA)
     }
   } else {
-    # for all other codes, use main part (e.g., "1_9" → "H1")
-    return(paste0("H", main))
+    # for all other codes, use main part (e.g., '1_9' → 'H1')
+    return(paste0('H', main))
   }
 }
 
 # check that this works
-convert_habitat_code("1_9")    # Returns "H1"
-convert_habitat_code("14_4")   # Returns "H14.4"
-convert_habitat_code("14")     # Returns c("H14.1", "H14.2", ..., "H14.6")
-convert_habitat_code("5")      # Returns "H5"
+convert_habitat_code('1_9')    # Returns 'H1'
+convert_habitat_code('14_4')   # Returns 'H14.4'
+convert_habitat_code('14')     # Returns c('H14.1', 'H14.2', ..., 'H14.6')
+convert_habitat_code('5')      # Returns 'H5'
 
 # nested loop in which first we select a year for the base layer
 # and then extract distributions for that year
@@ -164,7 +164,7 @@ for (i in seq_along(base_files)) {
     
     # skip if the species is already processed
     if (file.exists(output_file)) {
-      message("Skipping ", mammal$sci_name, " (already processed)")
+      message('Skipping ', mammal$sci_name, ' (already processed)')
       next
     }
     
@@ -175,7 +175,7 @@ for (i in seq_along(base_files)) {
     
     # get habitat codes and elevation range from the current species
     habitat_codes <- hab_pref[[mammal$sci_name]]$Habitat_Code
-    if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == "") {
+    if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == '') {
       cat('Species', mammal$sci_name, 'skipped because no suitable habitat found in IUCN API.\n')
       next
     }
@@ -208,7 +208,7 @@ for (i in seq_along(base_files)) {
       # (this can be modified if lower tertiles are needed)
       landuse_codes <- translation[translation$code==code_conv,'thr_high_code'] 
       # convert to numeric
-      code_vec <- as.numeric(strsplit(landuse_codes, ";", fixed = TRUE)[[1]])
+      code_vec <- as.numeric(strsplit(landuse_codes, ';', fixed = TRUE)[[1]])
       
       # apply logic condition to each land use code
       # landuse * 1000 and between min-max elevation
@@ -226,6 +226,6 @@ for (i in seq_along(base_files)) {
     
     # write output
     writeRaster(binary_mask, output_file, overwrite = TRUE)
-    message("Processed and saved: ", mammal$sci_name)
+    message('Processed and saved: ', mammal$sci_name)
   }
 }
