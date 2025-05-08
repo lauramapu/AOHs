@@ -20,14 +20,14 @@ forest <- vect('Spatial_Data/Tropical_Forest/tropicalmask.shp')
 # this step extracted from script 02 by iago
 
 #Import bird distribution ranges from IUCN/Bird_Life
-bird_ranges <- terra::vect("Spatial_Data/BirdLife_Range_Maps_Birds/BOTW.gdb") # All_Species layer
+bird_ranges <- terra::vect('Spatial_Data/BirdLife_Range_Maps_Birds/BOTW.gdb') # All_Species layer
 # import second layer to extract categories
-iucn_cats <- as.data.frame(terra::vect("Spatial_Data/BirdLife_Range_Maps_Birds/BOTW.gdb",
+iucn_cats <- as.data.frame(terra::vect('Spatial_Data/BirdLife_Range_Maps_Birds/BOTW.gdb',
                                        layer = 'BirdLifeTaxonomicChecklist_2022')) %>%
   rename(sisid=SISID)
 
 # spatvector to df to operate better
-bird_df <- as.data.frame(bird_ranges, geom = "WKT")
+bird_df <- as.data.frame(bird_ranges, geom = 'WKT')
 bird_df <- left_join(bird_df, iucn_cats[, c('sisid', 'F2022_IUCN_RedList_Category')], by = 'sisid')
 rm(iucn_cats)
 
@@ -36,14 +36,14 @@ forest <- terra::project(forest, crs(bird_ranges))
 
 # here I select the ones used in Lumbierres et al 2022:
 
-# "we selected range polygons with extant and probably extant presence; native, reintroduced,
+# 'we selected range polygons with extant and probably extant presence; native, reintroduced,
 # and assisted colonization origin; and resident seasonality for non-migratory species
 # (all birds and the 8,979 non-migratory birds). For migratory birds (1,816 species), we kept
 # separated the ranges for breeding (1,446 species), non-breeding (1,550 species) and a
 # combination of resident and uncertain (1,290 species) seasonality. [...]
 # For 18 bird and 22 bird species categorized as Critical Endangered, there were no presence
 # polygons coded as extant or probably extant. To assist the conservation of these species,
-# we produced AOH maps using the possibly extinct polygon for these taxa."
+# we produced AOH maps using the possibly extinct polygon for these taxa.'
 
 # codes of attributes are available in Spatial_Data/IUCN_Standard_attributes_for_spatial_data_v1.20_2024.xlsx
 # our interest codes are the following:
@@ -69,7 +69,7 @@ migratory <- bird_df %>%
   pull(sci_name)
 
 # extract CR species
-critical_species <- unique(bird_df$sci_name[bird_df$F2022_IUCN_RedList_Category == "CR"])
+critical_species <- unique(bird_df$sci_name[bird_df$F2022_IUCN_RedList_Category == 'CR'])
 
 # find CR species with no polygons $presence == 1 or 2
 cr_no_presence_12 <- bird_df %>%
@@ -106,9 +106,9 @@ non_migratory <- bird_ranges[final_condition, ]
 # function to aggregate by species, intersect with tropical mask and write
 
 final_processing <- function(ranges, range_name) {
-  ranges <- aggregate(ranges, by = "sisid", dissolve = TRUE)
-  ranges <- ranges[, c("sisid","sci_name")]
-  names(ranges) <- c("IUCN_ID","IUCN_Species")
+  ranges <- aggregate(ranges, by = 'sisid', dissolve = TRUE)
+  ranges <- ranges[, c('sisid','sci_name')]
+  names(ranges) <- c('IUCN_ID','IUCN_Species')
   tropical_ranges <- terra::intersect(ranges, forest)
   tropical_ranges <-terra::simplifyGeom(tropical_ranges, tolerance = 0.01) #keep tolerance super low
   terra::writeVector(tropical_ranges,
@@ -181,8 +181,9 @@ rm(list=ls()); gc()
 
 ### 2. extract IUCN information on habitat and elevation range for each species
 
-allbirds <- list.files('Spatial_Data/BirdLife_Range_Maps_Birds', pattern='',
-                         full.names=T)[2:5] %>%
+allbirds <- list.files('Spatial_Data/BirdLife_Range_Maps_Birds',
+                       pattern='^[^.]*$',
+                         full.names=T) %>%
   lapply(vect) %>%
   lapply(as.data.frame)
 
@@ -208,8 +209,8 @@ for (i in 1:nrow(allspecies)) {
   
   cat(i, '/', nrow(allspecies),'\n')
   
-  species_id <- allspecies[i, "sisid"]
-  species_name <- as.character(allspecies[i, "sci_name"])
+  species_id <- allspecies[i, 'sisid']
+  species_name <- as.character(allspecies[i, 'sci_name'])
   
   # **Check if species is already in the habitat preferences list**
   if (species_name %in% names(bird_habitat_preferences)) {
@@ -227,13 +228,13 @@ for (i in 1:nrow(allspecies)) {
   
   # Retrieve habitat data
   a_data <- assessment_data_many(api, assessment_raw$assessment_id, wait_time = 0.5)
-  habitats <- extract_element(a_data, "habitats")
+  habitats <- extract_element(a_data, 'habitats')
   
   # Filter suitable habitats
   if (!is.null(habitats) && nrow(habitats) > 0) {
     habitats <- habitats %>%
-      filter(suitability == "Suitable") %>%
-      select("Description" = description, "Habitat_Code" = code, 'Season' = season) %>%
+      filter(suitability == 'Suitable') %>%
+      select('Description' = description, 'Habitat_Code' = code, 'Season' = season) %>%
       distinct()
     
     # Store result with species name
@@ -285,29 +286,29 @@ birds_files <- list.files('Spatial_Data/BirdLife_Range_Maps_Birds',
 
 translation <- read.csv('Habitats/translation_by_lumbierres.csv')
 
-# function to convert habitat codes (e.g., "1_9", "14_4") to translation$code format (e.g., "H1", "H14.1")
+# function to convert habitat codes (e.g., '1_9', '14_4') to translation$code format (e.g., 'H1', 'H14.1')
 convert_habitat_code <- function(code_raw) {
-  # split code into main and subcomponents (e.g., "1_9" → c("1", "9"))
-  parts <- strsplit(as.character(code_raw), "_")[[1]]
+  # split code into main and subcomponents (e.g., '1_9' → c('1', '9'))
+  parts <- strsplit(as.character(code_raw), '_')[[1]]
   main <- parts[1]
   
-  # handle special case for "14" (has subgroups in translation)
-  if (main == "14") {
+  # handle special case for '14' (has subgroups in translation)
+  if (main == '14') {
     if (length(parts) == 1) {
-      # ff code is just "14", return all 14.x codes
-      return(paste0("H14.", 1:6))
+      # ff code is just '14', return all 14.x codes
+      return(paste0('H14.', 1:6))
     } else {
-      # if code is "14_x", map to specific subgroup
+      # if code is '14_x', map to specific subgroup
       subgroup <- parts[2]
-      if (subgroup %in% c("1", "2")) return("H14.1")
-      if (subgroup %in% c("3", "6")) return("H14.3")
-      if (subgroup %in% c("4", "5")) return("H14.4")
-      warning("Unknown 14 subgroup: ", code_raw)
+      if (subgroup %in% c('1', '2')) return('H14.1')
+      if (subgroup %in% c('3', '6')) return('H14.3')
+      if (subgroup %in% c('4', '5')) return('H14.4')
+      warning('Unknown 14 subgroup: ', code_raw)
       return(NA)
     }
   } else {
-    # for all other codes, use main part (e.g., "1_9" → "H1")
-    return(paste0("H", main))
+    # for all other codes, use main part (e.g., '1_9' → 'H1')
+    return(paste0('H', main))
   }
 }
 
@@ -342,7 +343,7 @@ for (i in seq_along(base_files)) {
       
       # skip if the species is already processed
       if (file.exists(output_file)) {
-        message("Skipping ", bird$sci_name, " (already processed)")
+        message('Skipping ', bird$sci_name, ' (already processed)')
         next
       }
       
@@ -361,7 +362,7 @@ for (i in seq_along(base_files)) {
       } else {
         habitat_codes <- habitats[habitats$Season=='Resident', ]$Habitat_Code
       }
-      if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == "") {
+      if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == '') {
         cat('Species', bird$IUCN_Species, 'and', type, 'season', 'skipped because no suitable habitat found in IUCN API.\n')
         next
       }
@@ -394,12 +395,12 @@ for (i in seq_along(base_files)) {
         # get landuse codes for the hightest tertile only
         # (this can be modified if lower tertiles are needed)
         landuse_codes <- translation[translation$code==code_conv,'thr_high_code'] 
-        if (length(landuse_codes) == 0 || is.na(landuse_codes) || landuse_codes == "") {
+        if (length(landuse_codes) == 0 || is.na(landuse_codes) || landuse_codes == '') {
           cat('Species', bird$IUCN_Species, '+' , type, 'season + and habitat code', code_conv, 'skipped because habitat is not terrestrial.\n')
           next
         }
         # convert to numeric
-        code_vec <- as.numeric(strsplit(landuse_codes, ";", fixed = TRUE)[[1]])
+        code_vec <- as.numeric(strsplit(landuse_codes, ';', fixed = TRUE)[[1]])
         
         # apply logic condition to each land use code
         # landuse * 1000 and between min-max elevation
@@ -417,7 +418,7 @@ for (i in seq_along(base_files)) {
       
       # write output
       writeRaster(binary_mask, output_file, overwrite = TRUE)
-      message("Processed and saved: ", bird$sci_name)
+      message('Processed and saved: ', bird$sci_name)
     }
   }
 }
