@@ -23,7 +23,7 @@ srtm <- rast(paste0(store_slurm, 'Spatial_Data/SRTM90/strm_300m_trop.tif'))
 
 # download all needed ESA files
 # in the following vector just write down the years you want
-years <- c(1995, 2000, 2005, 2010, 2015, 2020)
+years <- c(1995, 2000, 2005, 2010, 2015)
 
 # set download directory
 download_dir <- paste0(store_slurm, 'Spatial_Data/ESA-LC/')
