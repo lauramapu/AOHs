@@ -1,7 +1,6 @@
 
 ### 1. process ESA CCI and translate
 # crop/mask with tropical forest
-# from this step the process is per year (ESA-CCI)
 
 rm(list=ls())
 
@@ -158,7 +157,7 @@ for (i in seq_along(base_files)) {
     
     # get species
     mammal <- mammals[j, ]
-    output_file <- paste0('Spatial_Data/AOHs/', year, '/', mammal$sci_name, '.tif')
+    output_file <- paste0(output_dir, mammal$sci_name, '.tif')
     
     # skip if the species is already processed
     if (file.exists(output_file)) {
