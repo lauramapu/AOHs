@@ -312,7 +312,7 @@ convert_habitat_code <- function(code_raw) {
 }
 
 # nested loop in which first we select a year for the base layer
-# then a group of birds (non-migratory, breeding, non-breeding, resident-uncertain)
+# then a group of birds (non-migratory, migratory breeding, migratory non-breeding, migratory resident-uncertain)
 # and then extract distributions for that year and group
 
 for (i in seq_along(base_files)) {
@@ -331,14 +331,14 @@ for (i in seq_along(base_files)) {
     birds <- vect(birds_files[j])
 
     # generate output path per year and type of bird
-    output_dir <- paste0('Spatial_Data/AOHs/', type, '/', year, '/')
+    output_dir <- paste0('Spatial_Data/AOHs/birds/', type, '/', year, '/')
     if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
   
     for (k in seq_along(birds)) {
       
       # get species
       bird <- birds[k, ]
-      output_file <- paste0(output_dir, '/', bird$IUCN_Species, '.tif')
+      output_file <- paste0(output_dir, bird$IUCN_Species, '.tif')
       
       # skip if the species is already processed
       if (file.exists(output_file)) {
