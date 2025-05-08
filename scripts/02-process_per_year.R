@@ -22,6 +22,7 @@ years <- c(1995, 2000, 2005, 2010, 2015)
 
 # set download directory
 download_dir <- 'Spatial_Data/ESA-LC/'
+if (!dir.exists(download_dir)) dir.create(download_dir, recursive = TRUE)
 # iterate though these years
 for (i in years) {
   year <- years[i]
