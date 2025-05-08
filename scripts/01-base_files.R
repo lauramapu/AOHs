@@ -43,12 +43,12 @@ mammal_ranges <- terra::vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/M
 
 # here I select the ones used in Lumbierres et al 2022:
 
-# "we selected range polygons with extant and probably extant presence; native, reintroduced,
+# 'we selected range polygons with extant and probably extant presence; native, reintroduced,
 # and assisted colonization origin; and resident seasonality for non-migratory species
 # (all mammals and the 8,979 non-migratory birds) [...].
 # For 18 mammal and 22 bird species categorized as Critical Endangered, there were no presence
 # polygons coded as extant or probably extant. To assist the conservation of these species,
-# we produced AOH maps using the possibly extinct polygon for these taxa."
+# we produced AOH maps using the possibly extinct polygon for these taxa.'
 
 # codes of attributes are available in Spatial_Data/IUCN_Standard_attributes_for_spatial_data_v1.20_2024.xlsx
 # our interest codes are the following:
@@ -58,10 +58,10 @@ mammal_ranges <- terra::vect('Spatial_Data/IUCN_Range_Maps_Terrestrial_Mammals/M
 # $seasonal -> resident == 1
 
 # spatvector to df to operate better
-mammal_df <- as.data.frame(mammal_ranges, geom = "WKT")
+mammal_df <- as.data.frame(mammal_ranges, geom = 'WKT')
 
 # extract CR species
-critical_species <- unique(mammal_df$sci_name[mammal_df$category == "CR"])
+critical_species <- unique(mammal_df$sci_name[mammal_df$category == 'CR'])
 
 # find CR species with no polygons $presence == 1 or 2
 cr_no_presence_12 <- mammal_df %>%
@@ -368,7 +368,7 @@ for (i in 1:nrow(iucn)) {
     if (!is.na(value)) {
       # get corresponding codes from cci_legend (may be multiple)
       codes <- cci_legend$Value[cci_legend$lumbierres == thr_class]
-      codes_str <- paste(codes, collapse = "; ")  # combine multiple codes
+      codes_str <- paste(codes, collapse = '; ')  # combine multiple codes
       
       if (value >= thresholds$low[1] && value <= thresholds$low[2]) {
         low_classes <- c(low_classes, thr_class)
@@ -385,16 +385,16 @@ for (i in 1:nrow(iucn)) {
   
   # assign names and codes
   if (length(low_classes) > 0) {
-    iucn$thr_low[i] <- paste(low_classes, collapse = "; ")
-    iucn$thr_low_code[i] <- paste(low_codes, collapse = "; ")
+    iucn$thr_low[i] <- paste(low_classes, collapse = '; ')
+    iucn$thr_low_code[i] <- paste(low_codes, collapse = '; ')
   }
   if (length(mid_classes) > 0) {
-    iucn$thr_mid[i] <- paste(mid_classes, collapse = "; ")
-    iucn$thr_mid_code[i] <- paste(mid_codes, collapse = "; ")
+    iucn$thr_mid[i] <- paste(mid_classes, collapse = '; ')
+    iucn$thr_mid_code[i] <- paste(mid_codes, collapse = '; ')
   }
   if (length(high_classes) > 0) {
-    iucn$thr_high[i] <- paste(high_classes, collapse = "; ")
-    iucn$thr_high_code[i] <- paste(high_codes, collapse = "; ")
+    iucn$thr_high[i] <- paste(high_classes, collapse = '; ')
+    iucn$thr_high_code[i] <- paste(high_codes, collapse = '; ')
   }
 }
 
@@ -405,13 +405,13 @@ clean_na_strings <- function(x) {
   if (is.na(x)) {
     return(NA_character_)  # keep original NA values
   }
-  # split string, remove "NA", and recombine
-  parts <- strsplit(x, "; ")[[1]]
-  parts_clean <- parts[parts != "NA"]
+  # split string, remove 'NA', and recombine
+  parts <- strsplit(x, '; ')[[1]]
+  parts_clean <- parts[parts != 'NA']
   if (length(parts_clean) == 0) {
-    return(NA_character_)  # return NA if all parts were "NA"
+    return(NA_character_)  # return NA if all parts were 'NA'
   } else {
-    return(paste(parts_clean, collapse = "; "))
+    return(paste(parts_clean, collapse = '; '))
   }
 }
 
