@@ -14,6 +14,9 @@ library(stringr)
 library(tictoc)
 library(purrr)
 
+# save log to file with same name as script
+sink(paste0('log-', rstudioapi::getSourceEditorContext()$path %>% basename(), '.txt'), split=T, append=F)
+
 store_slurm <- '/mnt/netapp1/Store_CSIC/home/csic/byc/abl/lamapu/AOHs/' # replace
 
 forest <- vect('Spatial_Data/Tropical_Forest/tropicalmask.shp')
@@ -424,3 +427,5 @@ for (i in seq_along(base_files)) {
     }
   }
 }
+
+on.exit(sink())
