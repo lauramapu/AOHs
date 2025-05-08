@@ -175,8 +175,8 @@ for (i in seq_along(base_files)) {
     
     # get habitat codes and elevation range from the current species
     habitat_codes <- hab_pref[[mammal$sci_name]]$Habitat_Code
-    if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == '') {
-      cat('Species', mammal$sci_name, 'skipped because no suitable habitat found in IUCN API.\n')
+    if (length(habitat_codes) == 0 || all(is.na(habitat_codes)) || all(habitat_codes == '')) {
+      cat('Species', bird$IUCN_Species, 'and', type, 'season', 'skipped because no suitable habitat found in IUCN API.\n')
       next
     }
     # # if there are no suitable habitats, we assume all habitats are suitable

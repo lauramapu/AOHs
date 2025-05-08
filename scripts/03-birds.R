@@ -365,7 +365,7 @@ for (i in seq_along(base_files)) {
       } else {
         habitat_codes <- habitats[habitats$Season=='Resident', ]$Habitat_Code
       }
-      if (length(habitat_codes) == 0 || is.na(habitat_codes) || habitat_codes == '') {
+      if (length(habitat_codes) == 0 || all(is.na(habitat_codes)) || all(habitat_codes == '')) {
         cat('Species', bird$IUCN_Species, 'and', type, 'season', 'skipped because no suitable habitat found in IUCN API.\n')
         next
       }
@@ -421,7 +421,7 @@ for (i in seq_along(base_files)) {
       
       # write output
       writeRaster(binary_mask, output_file, overwrite = TRUE)
-      message('Processed and saved: ', bird$sci_name)
+      message('Processed and saved: ', bird$IUCN_Species)
     }
   }
 }
