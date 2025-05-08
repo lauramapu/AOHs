@@ -11,8 +11,8 @@ Based on the workflow conducted in Lumbierres et al 2022 to calculate Areas of H
 ### Some general considerations about the translation CCI-IUCN
 
 1. IUCN habitats are described in very general terms, so we have a single category for all kind of forests, grasslands, etc.
-2. Some habitats get no land use correlations in certain tertiles, such as rocky areas and artificial aquatic in low tertile, and artificial degraded forest and platation in high tertile, so might be lost in translation (look for them in tokyo :P).
-3. I did this only with the highest tertile of the positive correlations but I think it can be easily modified (or you can just repeat the AOH loop replacing 'thr_high_code' with 'thr_mid/low_code').
+2. Some habitats get no land use correlations in certain tertiles, such as rocky areas and artificial aquatic in low tertile, and artificial degraded forest and platation in high tertile, so might be lost in translation (look for them in tokyo :P). Same happens with some land uses that has no high correlations with any habitat, such as mosaic classes, so pixels classified with those land uses are not suitable for any species due to this translation.
+3. I did this only with the highest tertile of the positive correlations but it can be easily modified (or you can just repeat the AOH loop replacing 'thr_high_code' with 'thr_mid/low_code').
 
 ### Other general considerations
 
