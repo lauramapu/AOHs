@@ -14,6 +14,9 @@ library(stringr)
 library(tictoc)
 library(purrr)
 
+# save log to file with same name as script
+sink(paste0('log-', rstudioapi::getSourceEditorContext()$path %>% basename(), '.txt'), split=T, append=F)
+
 forest <- vect('Spatial_Data/Tropical_Forest/tropicalmask.shp')
 
 ### 1. crop BirdLife distributions with tropical forest mask and save
@@ -422,3 +425,5 @@ for (i in seq_along(base_files)) {
     }
   }
 }
+
+on.exit(sink())
