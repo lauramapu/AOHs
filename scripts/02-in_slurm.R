@@ -11,6 +11,9 @@ library(data.table)
 library(readxl)
 library(purrr)
 
+# save log to file with same name as script
+sink(paste0('log-', rstudioapi::getSourceEditorContext()$path %>% basename(), '.txt'), split=T, append=F)
+
 store_slurm <- '/mnt/netapp1/Store_CSIC/home/csic/byc/abl/lamapu/AOHs/' # replace
 
 forest <- vect('Spatial_Data/Tropical_Forest/tropicalmask.shp')
@@ -20,7 +23,7 @@ srtm <- rast(paste0(store_slurm, 'Spatial_Data/SRTM90/strm_300m_trop.tif'))
 
 # download all needed ESA files
 # in the following vector just write down the years you want
-years <- c(1995, 2000, 2005, 2010, 2015)
+years <- c(1995, 2000, 2005, 2010, 2015, 2020)
 
 # set download directory
 download_dir <- paste0(store_slurm, 'Spatial_Data/ESA-LC/')
@@ -229,3 +232,5 @@ for (i in seq_along(base_files)) {
     message('Processed and saved: ', mammal$sci_name)
   }
 }
+
+on.exit(sink())
