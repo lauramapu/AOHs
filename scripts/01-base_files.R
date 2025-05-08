@@ -28,6 +28,9 @@ library(iucnredlist) # devtools::install_github('IUCN-UK/iucnredlist')
 library(stringr)
 library(tictoc)
 
+# save log to file with same name as script
+sink(paste0('log-', rstudioapi::getSourceEditorContext()$path %>% basename(), '.txt'), split=T, append=F)
+
 #Import pantropical forest zone shp
 forest <- terra::vect('Spatial_Data/Tropical_Forest/TropicalForest.shp')
 # dissolve to fix bad geometries and save
@@ -421,3 +424,5 @@ iucn$thr_mid_code <- sapply(iucn$thr_mid_code, clean_na_strings)
 iucn$thr_high_code <- sapply(iucn$thr_high_code, clean_na_strings)
 
 write.csv(iucn, 'Habitats/translation_by_lumbierres.csv', row.names=F)
+
+on.exit(sink())
