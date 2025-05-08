@@ -380,11 +380,10 @@ for (i in seq_along(base_files)) {
       lo_e <- elevation_range$Lower_Elevation_Limit / 10
       hi_e <- elevation_range$Upper_Elevation_Limit / 10
       
-      # if any is NA replace with zero (no elevation range so we assume all values are suitable)
-      if (any(is.na(c(lo_e, hi_e)))) {
-        lo_e <- 0
-        hi_e <- 999
-      }
+      # if lower is NA replace with and if higher is NA replace with 999 (min and max respectively)
+      # if both are NA (no data) we assume all elevation is suitable
+      lo_e <- ifelse(is.na(lo_e), 0, lo_e)
+      hi_e <- ifelse(is.na(hi_e), 999, hi_e)
       
       # initialize logical raster (all FALSE)
       cond <- r
